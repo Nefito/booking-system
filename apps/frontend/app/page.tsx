@@ -2,9 +2,16 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { healthCheck } from '@/lib/api';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Calendar } from 'lucide-react';
 
 export default function Home() {
-  const { data: health, isLoading, error } = useQuery({
+  const {
+    data: health,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['health'],
     queryFn: healthCheck,
   });
@@ -20,13 +27,25 @@ export default function Home() {
             Full-stack booking system built with Next.js and NestJS
           </p>
 
+          <div className="flex gap-4 mt-4">
+            <Link href="/resources">
+              <Button size="lg">
+                <Calendar className="mr-2 h-4 w-4" />
+                Browse Resources
+              </Button>
+            </Link>
+            <Link href="/admin/resources">
+              <Button variant="outline" size="lg">
+                Admin Panel
+              </Button>
+            </Link>
+          </div>
+
           <div className="mt-8 p-6 border rounded-lg bg-zinc-50 dark:bg-zinc-900">
             <h2 className="text-xl font-semibold mb-4 text-black dark:text-zinc-50">
               Backend Health Check
             </h2>
-            {isLoading && (
-              <p className="text-zinc-600 dark:text-zinc-400">Loading...</p>
-            )}
+            {isLoading && <p className="text-zinc-600 dark:text-zinc-400">Loading...</p>}
             {error && (
               <p className="text-red-600 dark:text-red-400">
                 Error: {error instanceof Error ? error.message : 'Failed to connect to backend'}
@@ -44,7 +63,8 @@ export default function Home() {
                   <span className="font-semibold">Uptime:</span> {Math.floor(health.uptime)}s
                 </p>
                 <p className="text-zinc-600 dark:text-zinc-400">
-                  <span className="font-semibold">Timestamp:</span> {new Date(health.timestamp).toLocaleString()}
+                  <span className="font-semibold">Timestamp:</span>{' '}
+                  {new Date(health.timestamp).toLocaleString()}
                 </p>
               </div>
             )}

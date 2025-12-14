@@ -24,44 +24,44 @@ interface ResourceCardProps {
 
 export function ResourceCard({ resource, onEdit, onDelete, onToggleStatus }: ResourceCardProps) {
   return (
-    <Card className="overflow-visible transition-all duration-200 hover:shadow-lg hover:scale-[1.02]">
-      <div className="relative h-48 w-full overflow-hidden bg-zinc-200 dark:bg-zinc-800">
-        <Image
-          src={resource.thumbnail}
-          alt={resource.name}
-          fill
-          className="object-cover"
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-        />
-        <div className="absolute top-2 right-2">
-          <CategoryBadge category={resource.category} />
+    <Card className="overflow-visible transition-all duration-200 hover:shadow-lg hover:scale-[1.02] group">
+      <Link href={`/admin/resources/${resource.id}`} className="block">
+        <div className="relative h-48 w-full overflow-hidden bg-zinc-200 dark:bg-zinc-800 cursor-pointer">
+          <Image
+            src={resource.thumbnail}
+            alt={resource.name}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          />
+          <div className="absolute top-2 right-2">
+            <CategoryBadge category={resource.category} />
+          </div>
+          <div className="absolute top-2 left-2">
+            <Badge variant={resource.status === 'active' ? 'success' : 'secondary'}>
+              {resource.status}
+            </Badge>
+          </div>
         </div>
-        <div className="absolute top-2 left-2">
-          <Badge variant={resource.status === 'active' ? 'success' : 'secondary'}>
-            {resource.status}
-          </Badge>
-        </div>
-      </div>
-      <CardContent className="p-4">
-        <Link href={`/admin/resources/${resource.id}`}>
-          <h3 className="font-semibold text-lg mb-1 hover:underline cursor-pointer transition-colors hover:text-zinc-900 dark:hover:text-zinc-100">
+        <CardContent className="p-4">
+          <h3 className="font-semibold text-lg mb-1 transition-colors group-hover:text-zinc-900 dark:group-hover:text-zinc-100">
             {resource.name}
           </h3>
-        </Link>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2 mb-3">
-          {resource.description}
-        </p>
-        <div className="flex items-center gap-4 text-sm text-zinc-600 dark:text-zinc-400">
-          <span>📅 {resource.bookingCount} bookings</span>
-          <span>💰 ${resource.revenue}</span>
-        </div>
-      </CardContent>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2 mb-3">
+            {resource.description}
+          </p>
+          <div className="flex items-center gap-4 text-sm text-zinc-600 dark:text-zinc-400">
+            <span>📅 {resource.bookingCount} bookings</span>
+            <span>💰 ${resource.revenue}</span>
+          </div>
+        </CardContent>
+      </Link>
       <CardFooter className="p-4 pt-0 flex justify-between items-center relative">
-        <div className="text-sm">
+        <Link href={`/admin/resources/${resource.id}`} className="text-sm cursor-pointer">
           <span className="font-medium">{resource.utilization}%</span>
           <span className="text-zinc-600 dark:text-zinc-400 ml-1">utilization</span>
-        </div>
-        <div className="relative">
+        </Link>
+        <div className="relative" onClick={(e) => e.stopPropagation()}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">

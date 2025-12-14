@@ -240,25 +240,45 @@ const DropdownMenuItem = ({
   children,
   className,
   onClick,
+  asChild,
+  disabled,
 }: {
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
+  asChild?: boolean;
+  disabled?: boolean;
 }) => {
   const context = React.useContext(DropdownMenuContext);
   if (!context) throw new Error('DropdownMenuItem must be used within DropdownMenu');
 
+  const handleClick = () => {
+    if (disabled) return;
+    onClick?.();
+    context.setOpen(false);
+  };
+
+  const baseClassName = cn(
+    'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-zinc-100 focus:bg-zinc-100 dark:hover:bg-zinc-800 dark:focus:bg-zinc-800',
+    disabled && 'opacity-50 cursor-not-allowed pointer-events-none',
+    className
+  );
+
+  // If asChild, clone the child and add onClick handler and className
+  if (asChild && React.isValidElement(children)) {
+    const child = children as React.ReactElement<React.HTMLAttributes<HTMLElement>>;
+    return React.cloneElement(child, {
+      ...child.props,
+      onClick: (e: React.MouseEvent<HTMLElement>) => {
+        handleClick();
+        child.props.onClick?.(e);
+      },
+      className: cn(baseClassName, child.props.className),
+    } as React.HTMLAttributes<HTMLElement>);
+  }
+
   return (
-    <div
-      className={cn(
-        'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-zinc-100 focus:bg-zinc-100 dark:hover:bg-zinc-800 dark:focus:bg-zinc-800',
-        className
-      )}
-      onClick={() => {
-        onClick?.();
-        context.setOpen(false);
-      }}
-    >
+    <div className={baseClassName} onClick={handleClick}>
       {children}
     </div>
   );

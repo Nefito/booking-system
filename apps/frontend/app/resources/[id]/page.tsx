@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useResources } from '@/contexts/resources-context';
 import { getMonthAvailability, getDayAvailability, TimeSlot } from '@/lib/mock-data';
@@ -17,8 +17,9 @@ import { Button } from '@/components/ui/button';
 
 export default function ResourceBookingPage() {
   const params = useParams();
+  const router = useRouter();
   const resourceId = params.id as string;
-  const { getResource, getBookings, createBooking } = useResources();
+  const { getResource, getBookings } = useResources();
   const resource = getResource(resourceId);
   const bookings = getBookings(resourceId);
 
@@ -82,28 +83,16 @@ export default function ResourceBookingPage() {
   const handleBook = () => {
     if (!selectedDate || !selectedSlot || !resource) return;
 
-    // Parse slot times and create ISO datetime strings
+    // Format date as YYYY-MM-DD
     const year = selectedDate.getFullYear();
     const month = selectedDate.getMonth();
     const day = selectedDate.getDate();
-    const [startHour, startMin] = selectedSlot.start.split(':').map(Number);
-    const [endHour, endMin] = selectedSlot.end.split(':').map(Number);
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-    const startDateTime = new Date(year, month, day, startHour, startMin);
-    const endDateTime = new Date(year, month, day, endHour, endMin);
-
-    // Create booking
-    createBooking(
-      resourceId,
-      startDateTime.toISOString(),
-      endDateTime.toISOString(),
-      'Guest User', // In real app, get from auth
-      'guest@example.com' // In real app, get from auth
+    // Navigate to booking form with query params
+    router.push(
+      `/book/${resourceId}?date=${dateStr}&start=${selectedSlot.start}&end=${selectedSlot.end}`
     );
-
-    // Reset selection (calendar will update automatically via bookings dependency)
-    setSelectedSlot(null);
-    // Keep date selected so user can see the updated availability
   };
 
   if (!resource) {
@@ -125,7 +114,7 @@ export default function ResourceBookingPage() {
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         {/* Back Button */}
-        <Link href="/admin/resources">
+        <Link href="/resources">
           <Button variant="ghost" size="sm" className="mb-6">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Resources

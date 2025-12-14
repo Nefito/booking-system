@@ -2,7 +2,6 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { mockBookings } from '@/lib/mock-data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,9 +15,9 @@ export default function ResourceDetailPage() {
   const params = useParams();
   const router = useRouter();
   const resourceId = params.id as string;
-  const { getResource, deleteResource } = useResources();
+  const { getResource, deleteResource, getBookings } = useResources();
   const resource = getResource(resourceId);
-  const resourceBookings = mockBookings.filter((b) => b.resourceId === resourceId);
+  const resourceBookings = getBookings(resourceId);
 
   if (!resource) {
     return (
