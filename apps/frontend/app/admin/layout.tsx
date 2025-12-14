@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { LayoutDashboard, Package, Calendar, Settings } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { NavigationMenu } from '@/components/navigation-menu';
 
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -20,9 +22,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="flex flex-col lg:flex-row">
         {/* Sidebar */}
         <aside className="w-full lg:w-64 min-h-screen bg-white dark:bg-zinc-950 border-b lg:border-b-0 lg:border-r border-zinc-200 dark:border-zinc-800">
-          <div className="p-4 lg:p-6">
-            <h1 className="text-xl font-bold">Booking System</h1>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">Admin Panel</p>
+          <div className="p-4 lg:p-6 flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">Booking System</h1>
+              <p className="text-sm text-zinc-700 dark:text-zinc-400 mt-1">Admin Panel</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <NavigationMenu />
+            </div>
           </div>
           <nav className="px-2 lg:px-4 space-y-1 pb-4 lg:pb-0 flex lg:flex-col overflow-x-auto">
             {navigation.map((item) => {
@@ -35,7 +43,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
                     isActive
                       ? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50'
-                      : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50'
+                      : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50'
                   )}
                 >
                   <item.icon className="h-5 w-5 shrink-0" />

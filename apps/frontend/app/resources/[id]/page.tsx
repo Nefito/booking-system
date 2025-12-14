@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { NavigationMenu } from '@/components/navigation-menu';
 
 export default function ResourceBookingPage() {
   const params = useParams();
@@ -113,13 +115,19 @@ export default function ResourceBookingPage() {
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-        {/* Back Button */}
-        <Link href="/resources">
-          <Button variant="ghost" size="sm" className="mb-6">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Resources
-          </Button>
-        </Link>
+        {/* Header with Navigation */}
+        <div className="flex items-center justify-between mb-6">
+          <Link href="/resources">
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Resources
+            </Button>
+          </Link>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <NavigationMenu />
+          </div>
+        </div>
 
         {/* Resource Header */}
         <Card className="mb-6">

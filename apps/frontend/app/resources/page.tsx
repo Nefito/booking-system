@@ -8,6 +8,8 @@ import { Select } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Search, Filter } from 'lucide-react';
 import { useResources } from '@/contexts/resources-context';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { NavigationMenu } from '@/components/navigation-menu';
 
 type SortOption = 'name' | 'popularity' | 'price';
 
@@ -66,17 +68,27 @@ export default function PublicResourcesPage() {
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Book a Resource</h1>
-          <p className="text-lg text-zinc-600 dark:text-zinc-400">
-            Browse and book from our available resources
-          </p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-4xl font-bold mb-2 text-zinc-900 dark:text-zinc-50">
+                Book a Resource
+              </h1>
+              <p className="text-lg text-zinc-700 dark:text-zinc-400">
+                Browse and book from our available resources
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <NavigationMenu />
+            </div>
+          </div>
         </div>
 
         {/* Filters and Search */}
         <div className="space-y-4 mb-6">
           {/* Search Bar */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-500 dark:text-zinc-400" />
             <Input
               placeholder="Search resources..."
               value={searchQuery}
@@ -118,7 +130,7 @@ export default function PublicResourcesPage() {
         </div>
 
         {/* Results count */}
-        <div className="flex items-center justify-between text-sm text-zinc-600 dark:text-zinc-400 mb-6">
+        <div className="flex items-center justify-between text-sm text-zinc-700 dark:text-zinc-400 mb-6">
           <span>
             Showing {paginatedResources.length} of {filteredResources.length} resources
           </span>
@@ -131,8 +143,10 @@ export default function PublicResourcesPage() {
               <div className="rounded-full bg-zinc-100 dark:bg-zinc-800 p-6 mb-4">
                 <Filter className="h-12 w-12 text-zinc-400" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">No resources found</h3>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400 max-w-md mb-6">
+              <h3 className="text-lg font-semibold mb-2 text-zinc-900 dark:text-zinc-50">
+                No resources found
+              </h3>
+              <p className="text-sm text-zinc-700 dark:text-zinc-400 max-w-md mb-6">
                 {searchQuery || categoryFilter !== 'all'
                   ? "Try adjusting your search or filters to find what you're looking for."
                   : 'No resources available at the moment.'}
@@ -143,7 +157,7 @@ export default function PublicResourcesPage() {
                     setSearchQuery('');
                     setCategoryFilter('all');
                   }}
-                  className="px-4 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  className="px-4 py-2 text-sm text-zinc-900 dark:text-zinc-50 border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                 >
                   Clear Filters
                 </button>
@@ -164,17 +178,17 @@ export default function PublicResourcesPage() {
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-4 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 text-sm text-zinc-900 dark:text-zinc-50 border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
-                <span className="text-sm text-zinc-600 dark:text-zinc-400 px-4">
+                <span className="text-sm text-zinc-700 dark:text-zinc-400 px-4">
                   Page {currentPage} of {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-4 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 text-sm text-zinc-900 dark:text-zinc-50 border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>

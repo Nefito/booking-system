@@ -265,8 +265,10 @@ export default function BookingFormPage() {
               Back to Time Selection
             </Button>
           </Link>
-          <h1 className="text-3xl font-bold mb-2">Complete Your Booking</h1>
-          <p className="text-zinc-600 dark:text-zinc-400">
+          <h1 className="text-3xl font-bold mb-2 text-zinc-900 dark:text-zinc-50">
+            Complete Your Booking
+          </h1>
+          <p className="text-zinc-700 dark:text-zinc-400">
             Review your selection and provide your details
           </p>
         </div>
