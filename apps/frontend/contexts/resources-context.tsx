@@ -1,10 +1,16 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { Resource, mockResources as initialResources } from '@/lib/mock-data';
+import {
+  Resource,
+  Booking,
+  mockResources as initialResources,
+  mockBookings as initialBookings,
+} from '@/lib/mock-data';
 
 interface ResourcesContextValue {
   resources: Resource[];
+  bookings: Booking[];
   createResource: (
     data: Omit<
       Resource,
@@ -15,12 +21,21 @@ interface ResourcesContextValue {
   deleteResource: (id: string) => void;
   toggleResourceStatus: (id: string) => void;
   getResource: (id: string) => Resource | undefined;
+  createBooking: (
+    resourceId: string,
+    startTime: string,
+    endTime: string,
+    customerName: string,
+    customerEmail: string
+  ) => Booking;
+  getBookings: (resourceId?: string) => Booking[];
 }
 
 const ResourcesContext = createContext<ResourcesContextValue | undefined>(undefined);
 
 export function ResourcesProvider({ children }: { children: ReactNode }) {
   const [resources, setResources] = useState<Resource[]>(initialResources);
+  const [bookings, setBookings] = useState<Booking[]>(initialBookings);
 
   const createResource = useCallback(
     (
@@ -80,15 +95,54 @@ export function ResourcesProvider({ children }: { children: ReactNode }) {
     [resources]
   );
 
+  const createBooking = useCallback(
+    (
+      resourceId: string,
+      startTime: string,
+      endTime: string,
+      customerName: string,
+      customerEmail: string
+    ): Booking => {
+      const resource = resources.find((r) => r.id === resourceId);
+      const newBooking: Booking = {
+        id: `booking-${Date.now()}`,
+        resourceId,
+        resourceName: resource?.name || 'Unknown Resource',
+        startTime,
+        endTime,
+        status: 'confirmed',
+        customerName,
+        customerEmail,
+      };
+
+      setBookings((prev) => [...prev, newBooking]);
+      return newBooking;
+    },
+    [resources]
+  );
+
+  const getBookings = useCallback(
+    (resourceId?: string) => {
+      if (resourceId) {
+        return bookings.filter((b) => b.resourceId === resourceId);
+      }
+      return bookings;
+    },
+    [bookings]
+  );
+
   return (
     <ResourcesContext.Provider
       value={{
         resources,
+        bookings,
         createResource,
         updateResource,
         deleteResource,
         toggleResourceStatus,
         getResource,
+        createBooking,
+        getBookings,
       }}
     >
       {children}
