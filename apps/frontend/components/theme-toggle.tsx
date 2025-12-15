@@ -5,7 +5,7 @@ import { Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [mounted, setMounted] = useState(false);
 
   const updateTheme = (newTheme: 'light' | 'dark') => {
@@ -33,9 +33,10 @@ export function ThemeToggle() {
 
   useEffect(() => {
     // Check localStorage and system preference
+    // Default to dark theme if no preference is stored
     const stored = localStorage.getItem('theme') as 'light' | 'dark' | null;
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const initialTheme = stored || (systemPrefersDark ? 'dark' : 'light');
+    const initialTheme = stored || (systemPrefersDark ? 'dark' : 'light'); // Default to dark
 
     // Defer state updates to avoid synchronous setState in effect
     requestAnimationFrame(() => {

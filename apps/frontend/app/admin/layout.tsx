@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Package, Calendar, Settings } from 'lucide-react';
+import { LayoutDashboard, Package, Calendar } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NavigationMenu } from '@/components/navigation-menu';
 
@@ -11,7 +11,6 @@ const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { name: 'Resources', href: '/admin/resources', icon: Package },
   { name: 'Bookings', href: '/admin/bookings', icon: Calendar },
-  { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -21,7 +20,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
       <div className="flex flex-col lg:flex-row">
         {/* Sidebar */}
-        <aside className="w-full lg:w-64 min-h-screen bg-white dark:bg-zinc-950 border-b lg:border-b-0 lg:border-r border-zinc-200 dark:border-zinc-800">
+        <aside className="w-full lg:w-64 lg:min-h-screen min-h-auto bg-white dark:bg-zinc-950 border-b lg:border-b-0 lg:border-r border-zinc-200 dark:border-zinc-800">
           <div className="p-4 lg:p-6 flex items-center justify-between">
             <div>
               <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">Booking System</h1>

@@ -25,15 +25,37 @@ export interface Resource {
   updatedAt: string;
 }
 
+export type BookingStatus = 'confirmed' | 'pending' | 'cancelled' | 'completed' | 'no_show';
+
+export interface BookingTimelineEvent {
+  timestamp: string;
+  action: 'created' | 'confirmed' | 'modified' | 'cancelled' | 'completed' | 'no_show';
+  actor?: string; // 'system' | 'customer' | 'admin'
+  notes?: string;
+}
+
 export interface Booking {
   id: string;
   resourceId: string;
   resourceName: string;
+  resourceThumbnail?: string;
   startTime: string;
   endTime: string;
-  status: 'confirmed' | 'pending' | 'cancelled';
+  status: BookingStatus;
   customerName: string;
   customerEmail: string;
+  customerPhone?: string;
+  confirmationCode: string;
+  amount: number; // Total price paid
+  refundAmount?: number; // Amount refunded if cancelled
+  refundPercentage?: number; // Percentage refunded (0-100)
+  cancellationDeadline?: string; // ISO timestamp - deadline for full refund
+  cancellationReason?: string;
+  cancellationNotes?: string;
+  notes?: string; // Customer notes
+  createdAt: string;
+  updatedAt: string;
+  timeline?: BookingTimelineEvent[];
 }
 
 // Mock data
@@ -154,7 +176,26 @@ export const mockResources: Resource[] = [
   },
 ];
 
-export const mockBookings: Booking[] = [
+// Helper to calculate cancellation deadline (24 hours before booking)
+function getCancellationDeadline(startTime: string): string {
+  const start = new Date(startTime);
+  const deadline = new Date(start.getTime() - 24 * 60 * 60 * 1000); // 24 hours before
+  return deadline.toISOString();
+}
+
+// Type for partial booking data that will be normalized
+type PartialBooking = Partial<Booking> & {
+  id: string;
+  resourceId: string;
+  resourceName: string;
+  startTime: string;
+  endTime: string;
+  status: BookingStatus;
+  customerName: string;
+  customerEmail: string;
+};
+
+export const mockBookings: PartialBooking[] = [
   // Resource 1 - Conference Room A - December 15 (some bookings, should show limited/available)
   // Operating hours: 09:00-18:00, Duration: 60min, Buffer: 15min
   // Available slots should be: 09:00-10:00, 11:15-12:15, 12:30-13:30, 15:45-16:45, 17:00-18:00
@@ -162,11 +203,23 @@ export const mockBookings: Booking[] = [
     id: 'b1',
     resourceId: '1',
     resourceName: 'Conference Room A',
+    resourceThumbnail:
+      'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=300&fit=crop',
     startTime: '2025-12-15T10:00:00Z',
     endTime: '2025-12-15T11:00:00Z',
     status: 'confirmed',
     customerName: 'John Doe',
     customerEmail: 'john@example.com',
+    customerPhone: '+1-555-0101',
+    confirmationCode: 'ABC12345',
+    amount: 50,
+    cancellationDeadline: getCancellationDeadline('2025-12-15T10:00:00Z'),
+    createdAt: '2025-12-01T10:00:00Z',
+    updatedAt: '2025-12-01T10:00:00Z',
+    timeline: [
+      { timestamp: '2025-12-01T10:00:00Z', action: 'created', actor: 'customer' },
+      { timestamp: '2025-12-01T10:05:00Z', action: 'confirmed', actor: 'system' },
+    ],
   },
   {
     id: 'b2',
@@ -182,11 +235,17 @@ export const mockBookings: Booking[] = [
     id: 'b40',
     resourceId: '1',
     resourceName: 'Conference Room A',
+    resourceThumbnail:
+      'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=300&fit=crop',
     startTime: '2025-12-15T11:30:00Z',
     endTime: '2025-12-15T12:30:00Z',
     status: 'confirmed',
     customerName: 'Tom Green',
     customerEmail: 'tom@example.com',
+    confirmationCode: 'TOM11234',
+    amount: 50,
+    createdAt: '2025-12-01T11:30:00Z',
+    updatedAt: '2025-12-01T11:30:00Z',
   },
   {
     id: 'b41',
@@ -569,11 +628,99 @@ export const mockBookings: Booking[] = [
     id: 'b3',
     resourceId: '2',
     resourceName: 'Creative Workspace',
+    resourceThumbnail:
+      'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=400&h=300&fit=crop',
     startTime: '2025-12-16T09:00:00Z',
     endTime: '2025-12-16T13:00:00Z',
     status: 'pending',
     customerName: 'Bob Johnson',
     customerEmail: 'bob@example.com',
+    customerPhone: '+1-555-0103',
+    confirmationCode: 'GHI11223',
+    amount: 120, // 4 hours
+    cancellationDeadline: getCancellationDeadline('2025-12-16T09:00:00Z'),
+    createdAt: '2025-12-10T09:00:00Z',
+    updatedAt: '2025-12-10T09:00:00Z',
+    timeline: [{ timestamp: '2025-12-10T09:00:00Z', action: 'created', actor: 'customer' }],
+  },
+  // Past completed booking
+  {
+    id: 'b-past-1',
+    resourceId: '1',
+    resourceName: 'Conference Room A',
+    resourceThumbnail:
+      'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=300&fit=crop',
+    startTime: '2025-11-20T10:00:00Z',
+    endTime: '2025-11-20T11:00:00Z',
+    status: 'completed',
+    customerName: 'Alice Completed',
+    customerEmail: 'alice@example.com',
+    customerPhone: '+1-555-0104',
+    confirmationCode: 'JKL44556',
+    amount: 50,
+    createdAt: '2025-11-15T10:00:00Z',
+    updatedAt: '2025-11-20T11:00:00Z',
+    timeline: [
+      { timestamp: '2025-11-15T10:00:00Z', action: 'created', actor: 'customer' },
+      { timestamp: '2025-11-15T10:05:00Z', action: 'confirmed', actor: 'system' },
+      { timestamp: '2025-11-20T11:00:00Z', action: 'completed', actor: 'system' },
+    ],
+  },
+  // Cancelled booking
+  {
+    id: 'b-cancelled-1',
+    resourceId: '1',
+    resourceName: 'Conference Room A',
+    resourceThumbnail:
+      'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=300&fit=crop',
+    startTime: '2025-11-25T14:00:00Z',
+    endTime: '2025-11-25T15:00:00Z',
+    status: 'cancelled',
+    customerName: 'Charlie Cancelled',
+    customerEmail: 'charlie@example.com',
+    customerPhone: '+1-555-0105',
+    confirmationCode: 'MNO77889',
+    amount: 50,
+    refundAmount: 50,
+    refundPercentage: 100,
+    cancellationReason: 'Change of plans',
+    cancellationNotes: 'Had to reschedule due to emergency',
+    cancellationDeadline: getCancellationDeadline('2025-11-25T14:00:00Z'),
+    createdAt: '2025-11-20T14:00:00Z',
+    updatedAt: '2025-11-24T10:00:00Z',
+    timeline: [
+      { timestamp: '2025-11-20T14:00:00Z', action: 'created', actor: 'customer' },
+      { timestamp: '2025-11-20T14:05:00Z', action: 'confirmed', actor: 'system' },
+      {
+        timestamp: '2025-11-24T10:00:00Z',
+        action: 'cancelled',
+        actor: 'customer',
+        notes: 'Change of plans',
+      },
+    ],
+  },
+  // No-show booking
+  {
+    id: 'b-noshow-1',
+    resourceId: '2',
+    resourceName: 'Creative Workspace',
+    resourceThumbnail:
+      'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=400&h=300&fit=crop',
+    startTime: '2025-11-18T09:00:00Z',
+    endTime: '2025-11-18T13:00:00Z',
+    status: 'no_show',
+    customerName: 'David NoShow',
+    customerEmail: 'david@example.com',
+    customerPhone: '+1-555-0106',
+    confirmationCode: 'PQR00112',
+    amount: 120,
+    createdAt: '2025-11-10T09:00:00Z',
+    updatedAt: '2025-11-18T13:00:00Z',
+    timeline: [
+      { timestamp: '2025-11-10T09:00:00Z', action: 'created', actor: 'customer' },
+      { timestamp: '2025-11-10T09:05:00Z', action: 'confirmed', actor: 'system' },
+      { timestamp: '2025-11-18T13:00:00Z', action: 'no_show', actor: 'system' },
+    ],
   },
 ];
 
@@ -803,3 +950,81 @@ export function getMonthAvailability(
 
   return days;
 }
+
+// Helper to normalize bookings with default values for missing fields
+export function normalizeBooking(
+  booking: Partial<Booking> & {
+    id: string;
+    resourceId: string;
+    resourceName: string;
+    startTime: string;
+    endTime: string;
+    status: BookingStatus;
+    customerName: string;
+    customerEmail: string;
+  }
+): Booking {
+  const start = new Date(booking.startTime);
+  const end = new Date(booking.endTime);
+  const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+
+  // Find resource to get price and thumbnail
+  const resource = mockResources.find((r) => r.id === booking.resourceId);
+  const amount = resource ? resource.price * durationHours : 50;
+
+  // Generate confirmation code if missing (deterministic based on booking ID)
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let confirmationCode = booking.confirmationCode || '';
+  if (!confirmationCode) {
+    // Use booking ID as seed for deterministic code generation
+    let hash = 0;
+    for (let i = 0; i < booking.id.length; i++) {
+      const char = booking.id.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    // Generate 8 characters deterministically
+    for (let i = 0; i < 8; i++) {
+      const index = Math.abs(hash + i * 17) % chars.length;
+      confirmationCode += chars.charAt(index);
+    }
+  }
+
+  const cancellationDeadline =
+    booking.cancellationDeadline || getCancellationDeadline(booking.startTime);
+  const createdAt =
+    booking.createdAt || new Date(start.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days ago
+  const updatedAt = booking.updatedAt || createdAt;
+
+  return {
+    id: booking.id,
+    resourceId: booking.resourceId,
+    resourceName: booking.resourceName,
+    resourceThumbnail: booking.resourceThumbnail || resource?.thumbnail,
+    startTime: booking.startTime,
+    endTime: booking.endTime,
+    status: booking.status,
+    customerName: booking.customerName,
+    customerEmail: booking.customerEmail,
+    customerPhone: booking.customerPhone,
+    confirmationCode,
+    amount: booking.amount || amount,
+    refundAmount: booking.refundAmount,
+    refundPercentage: booking.refundPercentage,
+    cancellationDeadline,
+    cancellationReason: booking.cancellationReason,
+    cancellationNotes: booking.cancellationNotes,
+    notes: booking.notes,
+    createdAt,
+    updatedAt,
+    timeline: booking.timeline || [
+      { timestamp: createdAt, action: 'created' as const, actor: 'customer' },
+      ...(booking.status === 'confirmed'
+        ? [{ timestamp: createdAt, action: 'confirmed' as const, actor: 'system' }]
+        : []),
+    ],
+  };
+}
+
+// Export normalized bookings
+export const normalizedBookings: Booking[] = mockBookings.map(normalizeBooking);

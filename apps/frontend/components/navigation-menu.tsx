@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Settings, Eye, MailX, Menu, X, Package } from 'lucide-react';
+import { Settings, Eye, MailX, Menu, X, Package, Calendar } from 'lucide-react';
 import { useState } from 'react';
 
 const hiddenRoutes = [
   { name: 'Resources', href: '/resources', icon: Package },
+  { name: 'My Bookings', href: '/bookings', icon: Calendar },
   { name: 'Email Preview', href: '/emails/preview', icon: Eye },
   { name: 'Email Preferences', href: '/settings/notifications', icon: Settings },
   { name: 'Unsubscribe', href: '/unsubscribe', icon: MailX },
@@ -33,7 +34,9 @@ export function NavigationMenu() {
           <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg z-50">
             <div className="p-2">
               <div className="flex items-center justify-between p-2 mb-2 border-b border-zinc-200 dark:border-zinc-800">
-                <span className="text-sm font-semibold">Quick Links</span>
+                <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                  Quick Links
+                </span>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -50,9 +53,9 @@ export function NavigationMenu() {
                     key={route.href}
                     href={route.href}
                     onClick={() => setIsOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
+                    className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors text-zinc-900 dark:text-zinc-50"
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-4 w-4 text-zinc-700 dark:text-zinc-400" />
                     <span className="text-sm">{route.name}</span>
                   </Link>
                 );

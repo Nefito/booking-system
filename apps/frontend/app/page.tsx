@@ -5,6 +5,8 @@ import { healthCheck } from '@/lib/api';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Calendar } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { NavigationMenu } from '@/components/navigation-menu';
 
 export default function Home() {
   const {
@@ -19,8 +21,13 @@ export default function Home() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
+        {/* Header with Theme Toggle and Navigation */}
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          <ThemeToggle />
+          <NavigationMenu />
+        </div>
         <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
+          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-zinc-900 dark:text-zinc-50">
             Booking System
           </h1>
           <p className="max-w-md text-lg leading-8 text-zinc-700 dark:text-zinc-400">
