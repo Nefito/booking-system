@@ -2,6 +2,10 @@
 
 A full-stack booking system built with Next.js (frontend) and NestJS (backend), using PostgreSQL as the database.
 
+## Tables Schema
+
+https://excalidraw.com/#room=c997bc2fdec5fd5d226f,cofWlj3GA8WuFsy7YkaXFA
+
 ## 🏗️ Project Structure
 
 ```
@@ -17,6 +21,7 @@ booking-system/
 ## 🚀 Tech Stack
 
 ### Frontend
+
 - **Framework**: Next.js 16 with App Router
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
@@ -25,6 +30,7 @@ booking-system/
 - **Testing**: Jest + React Testing Library
 
 ### Backend
+
 - **Framework**: NestJS
 - **Language**: TypeScript
 - **Runtime**: Node.js (Bun compatible)
@@ -42,6 +48,7 @@ Before you begin, ensure you have the following installed:
 - **Git**
 
 Optional but recommended:
+
 - **Bun** >= 1.0.0 (for faster package management and runtime)
 
 ## 🔧 Setup Instructions
@@ -101,6 +108,7 @@ cp .env.example .env
 ```
 
 Edit `.env` and set:
+
 - `DATABASE_URL`: Your PostgreSQL connection string
 - `PORT`: Backend server port (default: 3001)
 - `FRONTEND_URL`: Frontend URL for CORS (default: http://localhost:3000)
@@ -113,6 +121,7 @@ cp .env.example .env.local
 ```
 
 Edit `.env.local` and set:
+
 - `NEXT_PUBLIC_API_URL`: Backend API URL (default: http://localhost:3001)
 
 ### 5. Initialize Database
@@ -144,12 +153,14 @@ npm run dev
 ```
 
 This will start:
+
 - Frontend on http://localhost:3000
 - Backend on http://localhost:3001
 
 #### Option B: Run Servers Separately
 
 **Terminal 1 - Frontend:**
+
 ```bash
 npm run dev:frontend
 # or
@@ -157,6 +168,7 @@ cd apps/frontend && npm run dev
 ```
 
 **Terminal 2 - Backend:**
+
 ```bash
 npm run dev:backend
 # or
@@ -242,6 +254,7 @@ npm run build:backend
 ### Start Production Servers
 
 **Frontend:**
+
 ```bash
 cd apps/frontend
 npm run build
@@ -249,6 +262,7 @@ npm run start
 ```
 
 **Backend:**
+
 ```bash
 cd apps/backend
 npm run build
@@ -287,6 +301,7 @@ curl http://localhost:3001/health
 ```
 
 Expected response:
+
 ```json
 {
   "status": "ok",
@@ -336,10 +351,11 @@ Expected response:
 ### Database Connection Issues
 
 1. Verify PostgreSQL is running:
+
    ```bash
    # macOS
    brew services list
-   
+
    # Linux
    sudo systemctl status postgresql
    ```
@@ -382,4 +398,3 @@ ISC
 ## 🆘 Support
 
 For issues and questions, please open an issue in the repository.
-
