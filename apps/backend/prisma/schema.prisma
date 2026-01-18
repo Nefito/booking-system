@@ -7,17 +7,289 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
-// Example model - can be extended based on booking system requirements
+enum DayOfWeek {
+  monday
+  tuesday
+  wednesday
+  thursday
+  friday
+  saturday
+  sunday
+
+  @@map("day_of_week")
+}
+
+enum RuleType {
+  read
+  write
+  delete
+
+  @@map("rule_type")
+}
+
+enum EmailType {
+  booking_confirmation
+  booking_reminder
+  cancellation_confirmation
+  reschedule_confirmation
+  welcome_email
+  password_reset
+
+  @@map("email_type")
+}
+
+enum ResourceStatus {
+  active
+  inactive
+
+  @@map("resource_status")
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  cancelled
+  completed
+  no_show
+
+  @@map("booking_status")
+}
+
+enum BlockoutReason {
+  maintenance
+  private_event
+  holiday
+  other
+
+  @@map("blockout_reason")
+}
+
+enum AvailabilityOverridesReason {
+  extended_hours
+  early_closure
+  special_event
+  holiday_hours
+  other
+
+  @@map("availability_overrides_reason")
+}
+
+enum BookingAction {
+  create
+  update
+  cancel
+  reschedule
+  status_change
+  refund_issued
+  payment_processed
+
+  @@map("booking_action")
+}
+
+enum EmailStatus {
+  pending
+  sent
+  failed
+  delivered
+  opened
+  clicked
+  bounced
+  complained
+  unsubscribed
+
+  @@map("email_status")
+}
+
+model Role {
+  id        String     @id @default(uuid())
+  name      String     @unique @db.VarChar(16)
+  rules     RuleType[] @default([read])
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  users         User[]
+  bookAuditLogs BookAuditLog[]
+
+  @@map("roles")
+}
+
+model Category {
+  id        String     @id @default(uuid())
+  name      String     @unique @db.VarChar(64)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime?  @map("updated_at")
+  deletedAt DateTime?  @map("deleted_at")
+
+  resources Resource[]
+
+  @@map("categories")
+}
+
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String     @id @default(uuid())
+  firstName String     @map("first_name") @db.VarChar(64)
+  lastName  String     @map("last_name") @db.VarChar(64)
+  email     String     @unique @db.VarChar(250)
+  phone     String?    @unique @db.VarChar(20)
+  password  String     @db.VarChar(250)
+  roleId    String?    @map("role_id")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime?  @map("updated_at")
+  deletedAt DateTime?  @map("deleted_at")
+
+  role              Role?                 @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  bookings          Booking[]
+  blockoutDates     BlockoutDate[]        @relation("BlockoutDateCreatedBy")
+  availabilityOverrides AvailabilityOverride[] @relation("AvailabilityOverrideCreatedBy")
+  bookAuditLogs     BookAuditLog[]
+  emailLogs         EmailLog[]
+  emailPreferences  EmailPreference[]
 
   @@map("users")
 }
 
+model Resource {
+  id                  String                    @id @default(uuid())
+  name                String                    @db.VarChar(250)
+  description         String?
+  status              ResourceStatus            @default(active)
+  imageUrl            String?                   @map("image_url") @db.VarChar(250)
+  durationMinutes     Int                       @default(60) @map("duration_minutes")
+  operatingStart      String                    @default("09:00:00") @map("operating_start")
+  operatingEnd        String                    @default("18:00:00") @map("operating_end")
+  availableDays       DayOfWeek[]               @default([monday, tuesday, wednesday, thursday, friday]) @map("available_days")
+  capacity            Int                       @default(1)
+  price               Decimal                   @default(0) @db.Decimal(10, 2)
+  bufferTimeMinutes   Int                       @default(15) @map("buffer_time_minutes")
+  categoryId          String?                   @map("category_id")
+  createdAt           DateTime                  @default(now()) @map("created_at")
+  updatedAt           DateTime?                 @map("updated_at")
+  deletedAt           DateTime?                 @map("deleted_at")
+
+  category            Category?                 @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  bookings            Booking[]
+  blockoutDates       BlockoutDate[]
+  availabilityOverrides AvailabilityOverride[]
+
+  @@map("resources")
+}
+
+model Booking {
+  id              String        @id @default(uuid())
+  status          BookingStatus @default(pending)
+  confirmationCode String       @unique @map("confirmation_code") @db.VarChar(8)
+  startTime       DateTime      @map("start_time")
+  endTime         DateTime      @map("end_time")
+  notes           String?
+  userId          String        @map("user_id")
+  resourceId      String        @map("resource_id")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime?     @map("updated_at")
+  deletedAt       DateTime?     @map("deleted_at")
+
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resource        Resource      @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  bookAuditLogs   BookAuditLog[]
+  emailLogs       EmailLog[]
+
+  @@map("bookings")
+}
+
+model BlockoutDate {
+  id          String          @id @default(uuid())
+  startDate   DateTime        @map("start_date")
+  endDate     DateTime        @map("end_date")
+  reason      BlockoutReason  @default(maintenance)
+  title       String          @db.VarChar(200)
+  description String?
+  createdBy   String          @map("created_by")
+  resourceId  String          @map("resource_id")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime?       @map("updated_at")
+
+  createdByUser User          @relation("BlockoutDateCreatedBy", fields: [createdBy], references: [id], onDelete: Cascade)
+  resource      Resource      @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@map("blockout_dates")
+}
+
+model AvailabilityOverride {
+  id            String                      @id @default(uuid())
+  startDate     DateTime                    @map("start_date")
+  endDate       DateTime                    @map("end_date")
+  availableDays DayOfWeek[]                 @default([monday, tuesday, wednesday, thursday, friday]) @map("available_days")
+  reason        AvailabilityOverridesReason  @default(extended_hours)
+  title         String                      @db.VarChar(200)
+  description   String?
+  createdBy     String                      @map("created_by")
+  resourceId    String                      @map("resource_id")
+  createdAt     DateTime                    @default(now()) @map("created_at")
+  updatedAt     DateTime?                   @map("updated_at")
+
+  createdByUser User                        @relation("AvailabilityOverrideCreatedBy", fields: [createdBy], references: [id], onDelete: Cascade)
+  resource      Resource                    @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@map("availability_overrides")
+}
+
+model BookAuditLog {
+  id            String        @id @default(uuid())
+  action        BookingAction @default(create)
+  oldValues     Json          @map("old_values")
+  newValues     Json          @map("new_values")
+  changedFields String[]      @map("changed_fields")
+  bookingId     String        @map("booking_id")
+  userId        String        @map("user_id")
+  roleId        String        @map("role_id")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime?     @map("updated_at")
+
+  booking       Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role          Role          @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@map("book_audit_logs")
+}
+
+model EmailLog {
+  id              String      @id @default(uuid())
+  emailType       EmailType   @map("email_type")
+  subject         String      @db.VarChar(500)
+  fromEmail       String      @map("from_email") @db.VarChar(250)
+  fromName        String      @map("from_name") @db.VarChar(130)
+  status          EmailStatus @default(pending)
+  sentAt          DateTime    @map("sent_at")
+  deliveredAt     DateTime?   @map("delivered_at")
+  openedAt        DateTime?   @map("opened_at")
+  clickedAt       DateTime?   @map("clicked_at")
+  bouncedAt       DateTime?   @map("bounced_at")
+  failedAt        DateTime?   @map("failed_at")
+  errorMessage    String?     @map("error_message")
+  bouncedReason   String?     @map("bounced_reason")
+  bouncedType     String      @default("hard") @map("bounced_type") @db.VarChar(20)
+  provider        String      @db.VarChar(50)
+  providerMessageId String    @map("provider_message_id") @db.VarChar(255)
+  recipientId     String      @map("recipient_id")
+  bookingId       String      @map("booking_id")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime?   @map("updated_at")
+
+  recipient       User        @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  booking         Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("email_logs")
+}
+
+model EmailPreference {
+  id        String    @id @default(uuid())
+  emailType EmailType @map("email_type")
+  isRequired Boolean  @default(false) @map("is_required")
+  userId    String    @map("user_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @map("updated_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("email_preferences")
+}
