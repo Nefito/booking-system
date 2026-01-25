@@ -127,24 +127,26 @@ model Category {
 }
 
 model User {
-  id        String     @id @default(uuid())
-  firstName String     @map("first_name") @db.VarChar(64)
-  lastName  String     @map("last_name") @db.VarChar(64)
-  email     String     @unique @db.VarChar(250)
-  phone     String?    @unique @db.VarChar(20)
-  password  String     @db.VarChar(250)
-  roleId    String?    @map("role_id")
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime?  @map("updated_at")
-  deletedAt DateTime?  @map("deleted_at")
+  id                  String     @id @default(uuid())
+  firstName           String     @map("first_name") @db.VarChar(64)
+  lastName            String     @map("last_name") @db.VarChar(64)
+  email               String     @unique @db.VarChar(250)
+  phone               String?    @unique @db.VarChar(20)
+  password            String     @db.VarChar(250)
+  roleId              String?    @map("role_id")
+  resetToken          String?    @map("reset_token")
+  resetTokenExpiresAt DateTime?  @map("reset_token_expires_at")
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime?  @map("updated_at")
+  deletedAt           DateTime?  @map("deleted_at")
 
-  role              Role?                 @relation(fields: [roleId], references: [id], onDelete: SetNull)
-  bookings          Booking[]
-  blockoutDates     BlockoutDate[]        @relation("BlockoutDateCreatedBy")
+  role                Role?           @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  bookings            Booking[]
+  blockoutDates       BlockoutDate[]  @relation("BlockoutDateCreatedBy")
   availabilityOverrides AvailabilityOverride[] @relation("AvailabilityOverrideCreatedBy")
-  bookAuditLogs     BookAuditLog[]
-  emailLogs         EmailLog[]
-  emailPreferences  EmailPreference[]
+  bookAuditLogs       BookAuditLog[]
+  emailLogs           EmailLog[]
+  emailPreferences    EmailPreference[]
 
   @@map("users")
 }
