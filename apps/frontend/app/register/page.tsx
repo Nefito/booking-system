@@ -47,7 +47,9 @@ export default function RegisterPage() {
     setIsSubmitting(true);
 
     try {
-      const { ...registerData } = data;
+      // Exclude confirmPassword before sending to API (only used for frontend validation)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { confirmPassword: _confirmPassword, ...registerData } = data;
       await registerUser(registerData);
 
       // Redirect to login after successful registration
