@@ -16,10 +16,12 @@ import { UserWithRole } from '../types/user.type';
  * Instead of: @Req() req, then req.user
  * We can do: @CurrentUser() user
  */
-export const CurrentUser = createParamDecorator((context: ExecutionContext): UserWithRole => {
-  // Get request object
-  const request = context.switchToHttp().getRequest();
+export const CurrentUser = createParamDecorator(
+  (data: unknown, ctx: ExecutionContext): UserWithRole => {
+    // Get request object
+    const request = ctx.switchToHttp().getRequest();
 
-  // Return user (attached by JwtAuthGuard)
-  return request.user as UserWithRole;
-});
+    // Return user (attached by JwtAuthGuard)
+    return request.user as UserWithRole;
+  }
+);

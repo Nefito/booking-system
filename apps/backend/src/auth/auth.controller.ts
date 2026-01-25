@@ -1,4 +1,12 @@
-import { Controller, Post, Get, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  UseGuards,
+  UnauthorizedException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -76,21 +84,29 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard) // Requires valid JWT token
   async getProfile(@CurrentUser() user: UserWithRole): Promise<UserProfileResponse> {
+    if (!user) {
+      throw new UnauthorizedException('User not found in request');
+    }
     // @CurrentUser() automatically gets user from request
     // Set by JwtAuthGuard in canActivate()
     // Return user data (never include password!)
-    return {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role
-        ? {
-            id: user.role.id,
-            name: user.role.name,
-          }
-        : undefined,
-    };
+    try {
+      return {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role
+          ? {
+              id: user.role.id,
+              name: user.role.name,
+            }
+          : null,
+      };
+    } catch (error) {
+      console.error('Error in getProfile:', error);
+      throw new InternalServerErrorException('Failed to get user profile');
+    }
   }
 
   /**
