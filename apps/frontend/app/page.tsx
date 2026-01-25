@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { healthCheck } from '@/lib/api';
 import Link from 'next/link';
@@ -7,16 +9,44 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NavigationMenu } from '@/components/navigation-menu';
+import { useAuth } from '@/contexts/auth-context';
 
 export default function Home() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading: isLoadingAuth } = useAuth();
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isLoadingAuth && !isAuthenticated) {
+      router.push('/login?redirect=/');
+    }
+  }, [isAuthenticated, isLoadingAuth, router]);
+
   const {
     data: health,
-    isLoading,
+    isLoading: isLoadingHealth,
     error,
   } = useQuery({
     queryKey: ['health'],
     queryFn: healthCheck,
   });
+
+  // Show loading state while checking authentication
+  if (isLoadingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-zinc-900 dark:border-zinc-100 border-r-transparent"></div>
+          <p className="mt-4 text-zinc-600 dark:text-zinc-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render content if not authenticated (redirect will happen)
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
@@ -52,7 +82,7 @@ export default function Home() {
             <h2 className="text-xl font-semibold mb-4 text-black dark:text-zinc-50">
               Backend Health Check
             </h2>
-            {isLoading && <p className="text-zinc-600 dark:text-zinc-400">Loading...</p>}
+            {isLoadingHealth && <p className="text-zinc-600 dark:text-zinc-400">Loading...</p>}
             {error && (
               <p className="text-red-600 dark:text-red-400">
                 Error: {error instanceof Error ? error.message : 'Failed to connect to backend'}
