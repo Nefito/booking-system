@@ -8,9 +8,10 @@ import { PrismaService } from './prisma.service';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
+import { ResourcesModule } from './resources/resources.module';
+
 @Module({
-  // Import AuthModule to use its controllers and services
-  imports: [AuthModule],
+  imports: [AuthModule, ResourcesModule],
 
   controllers: [AppController],
 
