@@ -3,6 +3,7 @@ import { resolve } from 'path';
 import { existsSync } from 'fs';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 
 // Load .env file from the backend directory
@@ -22,6 +23,11 @@ for (const envPath of envPaths) {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Increase body size limit (default is 100kb)
+  // Set to 10MB to handle larger resource data (e.g., long descriptions, image URLs)
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ limit: '10mb', extended: true }));
 
   // Enable CORS for frontend
   app.enableCors({
