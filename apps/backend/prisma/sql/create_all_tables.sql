@@ -34,7 +34,7 @@ CREATE TABLE users (
     first_name VARCHAR(64) NOT NULL,
     last_name VARCHAR(64) NOT NULL,
     email VARCHAR(250) NOT NULL UNIQUE,
-    phone VARCHAR(20) UNIQUE,
+    phone VARCHAR(20),
     password VARCHAR(250) NOT NULL,
 
     role_id UUID REFERENCES roles(id) ON DELETE SET NULL,

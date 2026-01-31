@@ -1,5 +1,7 @@
 import * as crypto from 'crypto';
 
+import { RefreshTokenUtil } from './refresh-token.utils';
+
 export interface JwtPayload {
   sub: string; // Subject - the user ID
   email: string;
@@ -12,9 +14,9 @@ export class JwtUtil {
   // In production, use a long random string (32+ characters)
   private static readonly SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
-  // Token expires in 7 days (in seconds)
-  // 7 days * 24 hours * 60 minutes * 60 seconds
-  private static readonly EXPIRES_IN = 7 * 24 * 60 * 60;
+  // Token expires in 10 minutes (in seconds)
+  // 10 minutes * 60 seconds
+  private static readonly EXPIRES_IN = 10 * 60;
 
   /**
    * Creates a JWT token from user data
@@ -111,6 +113,37 @@ export class JwtUtil {
       // Any error means invalid token
       return null;
     }
+  }
+
+  /**
+   * Creates a refresh token (JWT with longer expiration)
+   *
+   * WHY: Refresh tokens need longer expiration (7 days vs 10 minutes)
+   * - Allows users to stay logged in longer
+   * - Still expires eventually (security)
+   *
+   * HOW:
+   * - Same as sign() but with longer expiration
+   * - 7 days instead of 10 minutes
+   */
+  static signRefreshToken(payload: Omit<JwtPayload, 'iat' | 'exp'>): string {
+    const header = {
+      alg: 'HS256',
+      typ: 'JWT',
+    };
+
+    const now = Math.floor(Date.now() / 1000);
+    const jwtPayload: JwtPayload = {
+      ...payload,
+      iat: now,
+      exp: now + RefreshTokenUtil.EXPIRES_IN,
+    };
+
+    const encodedHeader = this.base64UrlEncode(JSON.stringify(header));
+    const encodedPayload = this.base64UrlEncode(JSON.stringify(jwtPayload));
+    const signature = this.createSignature(`${encodedHeader}.${encodedPayload}`);
+
+    return `${encodedHeader}.${encodedPayload}.${signature}`;
   }
 
   /**

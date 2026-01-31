@@ -70,7 +70,7 @@ export class JwtAuthGuard implements CanActivate {
     // STEP 5: Get user from database
     // WHY: Token only has ID, we need full user data
     // Also checks if user still exists (might have been deleted)
-    const user = await this.authService.validateUser(payload.sub);
+    const user = await this.authService.getUserById(payload.sub);
 
     if (!user) {
       throw new UnauthorizedException('User not found');

@@ -1,3 +1,5 @@
+import { UserProfileResponse } from '../types/user.type';
+
 /**
  * Data Transfer Object for authentication response
  *
@@ -23,9 +25,21 @@ export class AuthResponseDto {
    * USAGE: Client stores this and sends in Authorization header:
    * Authorization: Bearer {accessToken}
    *
-   * EXPIRATION: 7 days (defined in JwtUtil)
+   * EXPIRATION: 10 minutes (defined in JwtUtil)
    */
   accessToken: string;
+
+  /**
+   * Refresh token
+   *
+   * WHAT: Refresh token string (format: "header.payload.signature")
+   *
+   * USAGE: Client stores this and sends in Authorization header:
+   * Authorization: Bearer {refreshToken}
+   *
+   * EXPIRATION: 7 days (defined in RefreshTokenUtil)
+   */
+  refreshToken: string;
 
   /**
    * User information (without sensitive data)
@@ -47,14 +61,5 @@ export class AuthResponseDto {
    * - password: NEVER send password back!
    * - deletedAt: Internal field, not needed by client
    */
-  user: {
-    id: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    role?: {
-      id: string;
-      name: string;
-    };
-  };
+  user: UserProfileResponse;
 }

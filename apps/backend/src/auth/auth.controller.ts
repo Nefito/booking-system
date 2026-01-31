@@ -13,6 +13,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
@@ -65,6 +66,30 @@ export class AuthController {
   async login(@Body() loginDto: LoginDto) {
     // Validate and login
     return this.authService.login(loginDto);
+  }
+
+  /**
+   * POST /auth/logout
+   *
+   * PURPOSE: Logout user (invalidate refresh token)
+   *
+   * FLOW:
+   * 1. Client sends: Authorization: Bearer {accessToken}
+   * 2. JwtAuthGuard verifies token and loads user
+   * 3. @CurrentUser() extracts user from request
+   * 4. Server clears refresh token from database
+   * 5. Returns success message
+   *
+   * WHY PROTECTED: Need to know which user is logging out
+   * HOW: @UseGuards(JwtAuthGuard) ensures user is authenticated
+   */
+  @Post('logout')
+  @UseGuards(JwtAuthGuard) // Requires valid JWT token
+  async logout(@CurrentUser() user: UserWithRole) {
+    if (!user) {
+      throw new UnauthorizedException('User not found in request');
+    }
+    return this.authService.logout(user.id);
   }
 
   /**
@@ -145,5 +170,24 @@ export class AuthController {
   @Public()
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.authService.resetPassword(resetPasswordDto);
+  }
+
+  /**
+   * POST /auth/refresh
+   *
+   * PURPOSE: Get new access token using refresh token
+   *
+   * FLOW:
+   * 1. Client sends: { refreshToken }
+   * 2. Server validates refresh token
+   * 3. Server generates new access token (and optionally new refresh token)
+   * 4. Returns: { accessToken, refreshToken?, user }
+   *
+   * WHY PUBLIC: Refresh token is the authentication mechanism
+   */
+  @Post('refresh')
+  @Public()
+  async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
+    return this.authService.refreshAccessToken(refreshTokenDto);
   }
 }

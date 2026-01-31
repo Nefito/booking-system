@@ -2,12 +2,14 @@ import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/co
 import { PrismaService } from '../prisma.service';
 import { JwtUtil } from './utils/jwt.util';
 import { PasswordUtil } from './utils/password.utils';
+import { RefreshTokenUtil } from './utils/refresh-token.utils';
 import { LoginDto } from './dto/login.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResetTokenUtil } from './utils/reset-token.util';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 @Injectable()
 export class AuthService {
@@ -93,11 +95,29 @@ export class AuthService {
       email: user.email, // Email for identification
     });
 
-    // STEP 6: Return response
+    // STEP 6: Generate refresh token
+    // WHY: User needs a way to get new access tokens
+    // WHAT: Create random token and store in database
+    const refreshToken = RefreshTokenUtil.generateToken();
+    const refreshTokenHash = RefreshTokenUtil.hashToken(refreshToken);
+    const refreshTokenExpiration = RefreshTokenUtil.generateExpiration();
+
+    // STEP 7: Store refresh token in database
+    // WHY: Need to validate it later when refreshing
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        refreshToken: refreshTokenHash,
+        refreshTokenExpiresAt: refreshTokenExpiration,
+      },
+    });
+
+    // STEP 8: Return response
     // WHY: Client needs token to make authenticated requests
     // WHAT: Return token + user info (NO PASSWORD!)
     return {
       accessToken,
+      refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -167,9 +187,27 @@ export class AuthService {
       email: user.email,
     });
 
-    // STEP 6: Return response
+    // STEP 6: Generate refresh token
+    // WHY: User needs a way to get new access tokens
+    // WHAT: Create random token and store in database
+    const refreshToken = RefreshTokenUtil.generateToken();
+    const refreshTokenHash = RefreshTokenUtil.hashToken(refreshToken);
+    const refreshTokenExpiration = RefreshTokenUtil.generateExpiration();
+
+    // STEP 7: Store refresh token in database
+    // WHY: Need to validate it later when refreshing
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        refreshToken: refreshTokenHash,
+        refreshTokenExpiresAt: refreshTokenExpiration,
+      },
+    });
+
+    // STEP 8: Return response
     return {
       accessToken,
+      refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -186,7 +224,44 @@ export class AuthService {
   }
 
   /**
-   * Validate user from token
+   * Logout user (clear refresh token)
+   *
+   * FLOW:
+   * 1. Receive user ID (from authenticated request)
+   * 2. Clear refresh token from database
+   * 3. Clear refresh token expiration
+   * 4. Return success message
+   *
+   * WHY EACH STEP:
+   * - Clear refresh token: Prevents token reuse after logout
+   * - Clear expiration: Clean up database
+   * - Return success: Confirm logout completed
+   *
+   * SECURITY:
+   * - Invalidates refresh token immediately
+   * - User cannot refresh access token after logout
+   * - Access token will expire naturally (no need to blacklist)
+   */
+  async logout(userId: string): Promise<{ message: string }> {
+    // STEP 1: Clear refresh token from database
+    // WHY: When user logs out, invalidate their refresh token
+    // - Prevents token reuse after logout
+    // - Security best practice
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        refreshToken: null,
+        refreshTokenExpiresAt: null,
+      },
+    });
+
+    // STEP 2: Return success message
+    // WHY: Confirm logout was successful
+    return { message: 'Logged out successfully' };
+  }
+
+  /**
+   * Validate user from user id that comes from token
    *
    * WHY: When user makes request with token, we need to:
    * 1. Verify token is valid (done in guard)
@@ -195,7 +270,7 @@ export class AuthService {
    *
    * USED BY: JWT Guard after token verification
    */
-  async validateUser(userId: string) {
+  async getUserById(userId: string) {
     // Query database for user
     // WHY: Token only has ID, we need full user data
     const user = await this.prisma.user.findUnique({
@@ -331,6 +406,97 @@ export class AuthService {
     // STEP 6: Return success
     return {
       message: 'Password has been reset successfully. You can now login with your new password.',
+    };
+  }
+
+  /**
+   * Refresh access token using refresh token
+   *
+   * FLOW:
+   * 1. Hash the provided refresh token
+   * 2. Find user with matching refresh token hash
+   * 3. Check if refresh token is expired
+   * 4. Generate new access token
+   * 5. Rotate refresh token (generate new one)
+   * 6. Return new access token (and optionally new refresh token)
+   *
+   * WHY EACH STEP:
+   * - Hash token: We stored hashed token, need to compare
+   * - Find user: Identify which user is refreshing
+   * - Check expiration: Ensure token is still valid
+   * - Generate new access token: User gets fresh token
+   * - Rotate refresh token: Security best practice (optional)
+   */
+  async refreshAccessToken(refreshTokenDto: RefreshTokenDto): Promise<AuthResponseDto> {
+    // STEP 1: Hash the provided refresh token
+    // WHY: We stored hashed token in database
+    const refreshTokenHash = RefreshTokenUtil.hashToken(refreshTokenDto.refreshToken);
+
+    // STEP 2: Find user with matching refresh token
+    // WHY: Need to identify which user is refreshing
+    const user = await this.prisma.user.findFirst({
+      where: { refreshToken: refreshTokenHash },
+      include: { role: true },
+    });
+
+    // STEP 3: Check if user exists and token is valid
+    if (!user) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    // STEP 4: Check if refresh token is expired
+    // WHY: Expired tokens should not work
+    if (RefreshTokenUtil.isExpired(user.refreshTokenExpiresAt)) {
+      // Clear expired token
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          refreshToken: null,
+          refreshTokenExpiresAt: null,
+        },
+      });
+      throw new UnauthorizedException('Refresh token expired');
+    }
+
+    // STEP 5: Generate new access token
+    // WHY: User gets fresh access token
+    const accessToken = JwtUtil.sign({
+      sub: user.id,
+      email: user.email,
+    });
+
+    // STEP 6: Rotate refresh token (security best practice)
+    // WHY: If refresh token is stolen, rotating limits damage
+    // WHAT: Generate new refresh token, invalidate old one
+    const newRefreshToken = RefreshTokenUtil.generateToken();
+    const newRefreshTokenHash = RefreshTokenUtil.hashToken(newRefreshToken);
+    const newRefreshTokenExpiration = RefreshTokenUtil.generateExpiration();
+
+    // STEP 7: Update refresh token in database
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        refreshToken: newRefreshTokenHash,
+        refreshTokenExpiresAt: newRefreshTokenExpiration,
+      },
+    });
+
+    // STEP 8: Return new tokens
+    return {
+      accessToken,
+      refreshToken: newRefreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role
+          ? {
+              id: user.role.id,
+              name: user.role.name,
+            }
+          : undefined,
+      },
     };
   }
 }

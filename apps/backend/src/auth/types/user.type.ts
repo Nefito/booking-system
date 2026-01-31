@@ -11,7 +11,7 @@ import { User, Role } from '@prisma/client';
  * HOW IT WORKS:
  * - User is the base Prisma type (from @prisma/client)
  * - We extend it to include the role relation
- * - This matches what validateUser() returns in AuthService
+ * - This matches what getUserById() returns in AuthService
  */
 export type UserWithRole = User & {
   role: Role | null;
