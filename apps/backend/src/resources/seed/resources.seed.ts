@@ -1,9 +1,7 @@
 import { PrismaClient, DayOfWeek, ResourceStatus } from '@prisma/client';
 import { SlugUtil } from '../utils/slug.util';
 
-const prisma = new PrismaClient();
-
-export async function seedResources() {
+export async function seedResources(prisma: PrismaClient) {
   console.log('Seeding resources...');
 
   // First, ensure categories exist
