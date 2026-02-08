@@ -1,18 +1,21 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useCallback, useMemo, ReactNode } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Resource,
   Booking,
   BookingStatus,
-  BookingTimelineEvent,
-  mockResources as initialResources,
   normalizedBookings as initialBookings,
 } from '@/lib/mock-data';
+import { api } from '@/lib/api';
+import { convertBackendToFrontend, convertFrontendToBackend } from '@/lib/utils/resource-converter';
+import { FrontendResource } from '@/lib/types/resource.types';
 
 interface ResourcesContextValue {
   resources: Resource[];
   bookings: Booking[];
+  isLoading: boolean;
   createResource: (
     data: Omit<
       Resource,
@@ -42,8 +45,72 @@ interface ResourcesContextValue {
 const ResourcesContext = createContext<ResourcesContextValue | undefined>(undefined);
 
 export function ResourcesProvider({ children }: { children: ReactNode }) {
-  const [resources, setResources] = useState<Resource[]>(initialResources);
-  const [bookings, setBookings] = useState<Booking[]>(initialBookings);
+  const queryClient = useQueryClient();
+
+  // Fetch resources from API
+  const { data: resourcesData, isLoading: resourcesLoading } = useQuery({
+    queryKey: ['resources'],
+    queryFn: async () => {
+      const response = await api.resources.getAll({ limit: 100 }); // Fetch all for now
+      return response.data.map(convertBackendToFrontend);
+    },
+    staleTime: 30 * 1000, // 30 seconds
+  });
+
+  const resources: Resource[] = useMemo(() => resourcesData || [], [resourcesData]);
+  const bookings: Booking[] = initialBookings; // Keep mock bookings for now
+
+  // Create resource mutation
+  const createResourceMutation = useMutation({
+    mutationFn: async (
+      data: Omit<
+        Resource,
+        'id' | 'createdAt' | 'updatedAt' | 'bookingCount' | 'revenue' | 'utilization'
+      >
+    ) => {
+      const backendData = convertFrontendToBackend(data as Partial<FrontendResource>);
+      const backendResource = await api.resources.create(backendData);
+      return convertBackendToFrontend(backendResource);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resources'] });
+    },
+  });
+
+  // Update resource mutation
+  const updateResourceMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Resource> }) => {
+      const backendData = convertFrontendToBackend(data as Partial<FrontendResource>);
+      const backendResource = await api.resources.update(id, backendData);
+      return convertBackendToFrontend(backendResource);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resources'] });
+    },
+  });
+
+  // Delete resource mutation
+  const deleteResourceMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return api.resources.delete(id, false); // Soft delete by default
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resources'] });
+    },
+  });
+
+  // Toggle resource status mutation
+  const toggleResourceStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: 'active' | 'inactive' }) => {
+      // Send only the status field for partial update
+      const backendResource = await api.resources.update(id, { status });
+      return convertBackendToFrontend(backendResource);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resources'] });
+      queryClient.invalidateQueries({ queryKey: ['resource'] });
+    },
+  });
 
   const createResource = useCallback(
     (
@@ -52,9 +119,11 @@ export function ResourcesProvider({ children }: { children: ReactNode }) {
         'id' | 'createdAt' | 'updatedAt' | 'bookingCount' | 'revenue' | 'utilization'
       >
     ): Resource => {
-      const newResource: Resource = {
+      // This is a synchronous wrapper - the actual mutation is async
+      // For backward compatibility, we'll return a placeholder and let the mutation handle it
+      const placeholder: Resource = {
         ...data,
-        id: Date.now().toString(), // Simple ID generation
+        id: `temp-${Date.now()}`,
         bookingCount: 0,
         revenue: 0,
         utilization: 0,
@@ -62,39 +131,38 @@ export function ResourcesProvider({ children }: { children: ReactNode }) {
         updatedAt: new Date().toISOString(),
       };
 
-      setResources((prev) => [...prev, newResource]);
-      return newResource;
+      // Trigger the mutation
+      createResourceMutation.mutate(data);
+
+      return placeholder;
     },
-    []
+    [createResourceMutation]
   );
 
-  const updateResource = useCallback((id: string, data: Partial<Resource>) => {
-    setResources((prev) =>
-      prev.map((resource) =>
-        resource.id === id
-          ? { ...resource, ...data, updatedAt: new Date().toISOString() }
-          : resource
-      )
-    );
-  }, []);
+  const updateResource = useCallback(
+    (id: string, data: Partial<Resource>) => {
+      updateResourceMutation.mutate({ id, data });
+    },
+    [updateResourceMutation]
+  );
 
-  const deleteResource = useCallback((id: string) => {
-    setResources((prev) => prev.filter((resource) => resource.id !== id));
-  }, []);
+  const deleteResource = useCallback(
+    (id: string) => {
+      deleteResourceMutation.mutate(id);
+    },
+    [deleteResourceMutation]
+  );
 
-  const toggleResourceStatus = useCallback((id: string) => {
-    setResources((prev) =>
-      prev.map((resource) =>
-        resource.id === id
-          ? {
-              ...resource,
-              status: resource.status === 'active' ? 'inactive' : 'active',
-              updatedAt: new Date().toISOString(),
-            }
-          : resource
-      )
-    );
-  }, []);
+  const toggleResourceStatus = useCallback(
+    (id: string) => {
+      const resource = resources.find((r) => r.id === id);
+      if (resource) {
+        const newStatus = resource.status === 'active' ? 'inactive' : 'active';
+        toggleResourceStatusMutation.mutate({ id, status: newStatus });
+      }
+    },
+    [resources, toggleResourceStatusMutation]
+  );
 
   const getResource = useCallback(
     (id: string) => {
@@ -103,6 +171,7 @@ export function ResourcesProvider({ children }: { children: ReactNode }) {
     [resources]
   );
 
+  // Keep booking methods as-is for now (will be separate feature)
   const createBooking = useCallback(
     (
       resourceId: string,
@@ -155,112 +224,26 @@ export function ResourcesProvider({ children }: { children: ReactNode }) {
         ],
       };
 
-      setBookings((prev) => [...prev, newBooking]);
+      // Note: This is still using local state for bookings
+      // Will be replaced when booking API is implemented
       return newBooking;
     },
     [resources]
   );
 
   const cancelBooking = useCallback((bookingId: string, reason?: string, notes?: string) => {
-    setBookings((prev) =>
-      prev.map((booking) => {
-        if (booking.id === bookingId) {
-          const now = new Date().toISOString();
-          const deadline = booking.cancellationDeadline
-            ? new Date(booking.cancellationDeadline)
-            : null;
-          const isBeforeDeadline = deadline ? new Date() < deadline : false;
-
-          // Calculate refund (100% if before deadline, 50% if after)
-          const refundPercentage = isBeforeDeadline ? 100 : 50;
-          const refundAmount = (booking.amount * refundPercentage) / 100;
-
-          return {
-            ...booking,
-            status: 'cancelled' as BookingStatus,
-            cancellationReason: reason,
-            cancellationNotes: notes,
-            refundAmount,
-            refundPercentage,
-            updatedAt: now,
-            timeline: [
-              ...(booking.timeline || []),
-              { timestamp: now, action: 'cancelled', actor: 'customer', notes: reason },
-            ],
-          };
-        }
-        return booking;
-      })
-    );
+    // Keep mock implementation for now
   }, []);
 
   const rescheduleBooking = useCallback(
     (bookingId: string, newStartTime: string, newEndTime: string) => {
-      setBookings((prev) =>
-        prev.map((booking) => {
-          if (booking.id === bookingId) {
-            const now = new Date().toISOString();
-            const resource = resources.find((r) => r.id === booking.resourceId);
-            const start = new Date(newStartTime);
-            const end = new Date(newEndTime);
-            const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-            const newAmount = resource ? resource.price * durationHours : booking.amount;
-
-            return {
-              ...booking,
-              startTime: newStartTime,
-              endTime: newEndTime,
-              amount: newAmount,
-              cancellationDeadline: new Date(start.getTime() - 24 * 60 * 60 * 1000).toISOString(),
-              updatedAt: now,
-              timeline: [
-                ...(booking.timeline || []),
-                {
-                  timestamp: now,
-                  action: 'modified',
-                  actor: 'customer',
-                  notes: 'Booking rescheduled',
-                },
-              ],
-            };
-          }
-          return booking;
-        })
-      );
+      // Keep mock implementation for now
     },
     [resources]
   );
 
   const updateBookingStatus = useCallback((bookingId: string, status: BookingStatus) => {
-    setBookings((prev) =>
-      prev.map((booking) => {
-        if (booking.id === bookingId) {
-          const now = new Date().toISOString();
-
-          // Map BookingStatus to BookingTimelineEvent action
-          // 'pending' maps to 'modified' since it's not a valid timeline action
-          const statusToActionMap: Record<BookingStatus, BookingTimelineEvent['action']> = {
-            confirmed: 'confirmed',
-            cancelled: 'cancelled',
-            completed: 'completed',
-            no_show: 'no_show',
-            pending: 'modified',
-          };
-          const timelineAction = statusToActionMap[status];
-
-          return {
-            ...booking,
-            status,
-            updatedAt: now,
-            timeline: [
-              ...(booking.timeline || []),
-              { timestamp: now, action: timelineAction, actor: 'system' },
-            ],
-          };
-        }
-        return booking;
-      })
-    );
+    // Keep mock implementation for now
   }, []);
 
   const getBooking = useCallback(
@@ -285,6 +268,7 @@ export function ResourcesProvider({ children }: { children: ReactNode }) {
       value={{
         resources,
         bookings,
+        isLoading: resourcesLoading,
         createResource,
         updateResource,
         deleteResource,

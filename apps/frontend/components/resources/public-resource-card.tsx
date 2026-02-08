@@ -22,13 +22,19 @@ export function PublicResourceCard({ resource }: PublicResourceCardProps) {
     <Card className="overflow-visible transition-all duration-200 hover:shadow-lg hover:scale-[1.02] group h-full flex flex-col">
       <Link href={`/resources/${resource.id}`} className="block flex-1 flex flex-col">
         <div className="relative h-48 w-full overflow-hidden bg-zinc-200 dark:bg-zinc-800 cursor-pointer">
-          <Image
-            src={resource.thumbnail}
-            alt={resource.name}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          />
+          {resource.thumbnail ? (
+            <Image
+              src={resource.thumbnail}
+              alt={resource.name}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-zinc-400 dark:text-zinc-600">
+              <span>No Image</span>
+            </div>
+          )}
           <div className="absolute top-2 right-2">
             <CategoryBadge category={resource.category} />
           </div>

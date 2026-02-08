@@ -1,6 +1,7 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,20 +10,55 @@ import { CategoryBadge } from '@/components/resources/category-badge';
 import { ArrowLeft, Edit, Trash2, Calendar, DollarSign, Users, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { api } from '@/lib/api';
+import { convertBackendToFrontend } from '@/lib/utils/resource-converter';
 import { useResources } from '@/contexts/resources-context';
+import { ResourceCardSkeleton } from '@/components/resources/resource-card-skeleton';
 
 export default function ResourceDetailPage() {
   const params = useParams();
   const router = useRouter();
   const resourceId = params.id as string;
-  const { getResource, deleteResource, getBookings } = useResources();
-  const resource = getResource(resourceId);
-  const resourceBookings = getBookings(resourceId);
+  const { deleteResource, getBookings } = useResources();
 
-  if (!resource) {
+  // Fetch resource from API
+  const {
+    data: backendResource,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ['resource', resourceId],
+    queryFn: async () => {
+      return api.resources.getById(resourceId);
+    },
+    enabled: !!resourceId,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+
+  const resource = backendResource ? convertBackendToFrontend(backendResource) : null;
+  const resourceBookings = resource ? getBookings(resourceId) : [];
+
+  const handleDelete = () => {
+    if (confirm('Are you sure you want to delete this resource?')) {
+      deleteResource(resourceId);
+      router.push('/admin/resources');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <ResourceCardSkeleton />
+      </div>
+    );
+  }
+
+  if (error || !resource) {
     return (
       <div className="text-center py-12">
-        <p className="text-zinc-600 dark:text-zinc-400">Resource not found</p>
+        <p className="text-zinc-600 dark:text-zinc-400">
+          {error instanceof Error ? error.message : 'Resource not found'}
+        </p>
         <Link href="/admin/resources">
           <Button variant="outline" className="mt-4">
             Back to Resources
@@ -31,13 +67,6 @@ export default function ResourceDetailPage() {
       </div>
     );
   }
-
-  const handleDelete = () => {
-    if (confirm('Are you sure you want to delete this resource?')) {
-      deleteResource(resourceId);
-      router.push('/admin/resources');
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -52,13 +81,19 @@ export default function ResourceDetailPage() {
       {/* Hero Section */}
       <Card className="overflow-hidden">
         <div className="relative h-64 md:h-96 w-full bg-zinc-200 dark:bg-zinc-800">
-          <Image
-            src={resource.thumbnail}
-            alt={resource.name}
-            fill
-            className="object-cover"
-            sizes="100vw"
-          />
+          {resource.thumbnail ? (
+            <Image
+              src={resource.thumbnail}
+              alt={resource.name}
+              fill
+              className="object-cover"
+              sizes="100vw"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-zinc-400 dark:text-zinc-600">
+              <span>No Image</span>
+            </div>
+          )}
           <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
           <div className="absolute bottom-6 left-6 right-6">
             <div className="flex items-start justify-between">
@@ -162,6 +197,18 @@ export default function ResourceDetailPage() {
                   {resource.operatingHours.start} - {resource.operatingHours.end}
                 </p>
               </div>
+              {resource.location && (
+                <div className="col-span-2">
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">Location</p>
+                  <p className="font-medium">{resource.location}</p>
+                </div>
+              )}
+              {resource.advanceBookingLimitDays && (
+                <div>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">Advance Booking Limit</p>
+                  <p className="font-medium">{resource.advanceBookingLimitDays} days</p>
+                </div>
+              )}
             </div>
             <div>
               <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">Available Days</p>

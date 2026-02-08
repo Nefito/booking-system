@@ -1,42 +1,82 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ResourceCategory } from '@/lib/mock-data';
 import { PublicResourceCard } from '@/components/resources/public-resource-card';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Search, Filter } from 'lucide-react';
-import { useResources } from '@/contexts/resources-context';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NavigationMenu } from '@/components/navigation-menu';
+import { api } from '@/lib/api';
+import { convertBackendToFrontend } from '@/lib/utils/resource-converter';
+import { ResourceCardSkeleton } from '@/components/resources/resource-card-skeleton';
 
 type SortOption = 'name' | 'popularity' | 'price';
 
 export default function PublicResourcesPage() {
-  const { resources } = useResources();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState(''); // Local input state
+  const [searchQuery, setSearchQuery] = useState(''); // Debounced search query
   const [categoryFilter, setCategoryFilter] = useState<ResourceCategory | 'all'>('all');
   const [sortBy, setSortBy] = useState<SortOption>('name');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(searchInput);
+      setCurrentPage(1); // Reset to first page on search
+    }, 500); // 500ms debounce delay
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Fetch resources from API
+  const {
+    data: resourcesResponse,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ['resources', 'public', searchQuery, categoryFilter, sortBy, currentPage],
+    queryFn: async () => {
+      // For now, fetch all and filter client-side to maintain existing UI
+      // TODO: Update to use server-side filtering when category mapping is resolved
+      const response = await api.resources.getAll({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: searchQuery || undefined,
+        status: 'active', // Only show active resources
+        sortBy: sortBy === 'name' ? 'name' : sortBy === 'price' ? 'price' : 'createdAt',
+        sortOrder: sortBy === 'popularity' ? 'desc' : 'asc',
+      });
+      return response;
+    },
+    staleTime: 30 * 1000, // 30 seconds
+  });
+
+  // Convert backend resources to frontend format
+  const backendResources = resourcesResponse?.data || [];
+  const allResources = backendResources.map(convertBackendToFrontend);
+
   // Filter and sort resources (only show active resources)
   const filteredResources = useMemo(() => {
-    let filtered = resources.filter((resource) => resource.status === 'active');
+    let filtered = allResources.filter((resource) => resource.status === 'active');
 
-    // Search filter
+    // Category filter (client-side for now)
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter((resource) => resource.category === categoryFilter);
+    }
+
+    // Additional client-side search if needed
     if (searchQuery) {
       filtered = filtered.filter(
         (resource) =>
           resource.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           resource.description.toLowerCase().includes(searchQuery.toLowerCase())
       );
-    }
-
-    // Category filter
-    if (categoryFilter !== 'all') {
-      filtered = filtered.filter((resource) => resource.category === categoryFilter);
     }
 
     // Sort
@@ -54,14 +94,30 @@ export default function PublicResourcesPage() {
     });
 
     return filtered;
-  }, [resources, searchQuery, categoryFilter, sortBy]);
+  }, [allResources, searchQuery, categoryFilter, sortBy]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredResources.length / itemsPerPage);
-  const paginatedResources = filteredResources.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const totalPages = resourcesResponse?.meta.totalPages || 1;
+  const paginatedResources = filteredResources.slice(0, itemsPerPage);
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-zinc-50 dark:bg-black">
+        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+          <Card className="py-16">
+            <CardContent className="flex flex-col items-center justify-center text-center">
+              <h3 className="text-lg font-semibold mb-2 text-zinc-900 dark:text-zinc-50">
+                Error loading resources
+              </h3>
+              <p className="text-sm text-zinc-700 dark:text-zinc-400">
+                {error instanceof Error ? error.message : 'An error occurred'}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
@@ -91,10 +147,9 @@ export default function PublicResourcesPage() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-500 dark:text-zinc-400" />
             <Input
               placeholder="Search resources..."
-              value={searchQuery}
+              value={searchInput}
               onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
+                setSearchInput(e.target.value);
               }}
               className="pl-10"
             />
@@ -137,7 +192,13 @@ export default function PublicResourcesPage() {
         </div>
 
         {/* Resources Grid */}
-        {paginatedResources.length === 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <ResourceCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : paginatedResources.length === 0 ? (
           <Card className="py-16">
             <CardContent className="flex flex-col items-center justify-center text-center">
               <div className="rounded-full bg-zinc-100 dark:bg-zinc-800 p-6 mb-4">
@@ -154,6 +215,7 @@ export default function PublicResourcesPage() {
               {(searchQuery || categoryFilter !== 'all') && (
                 <button
                   onClick={() => {
+                    setSearchInput('');
                     setSearchQuery('');
                     setCategoryFilter('all');
                   }}

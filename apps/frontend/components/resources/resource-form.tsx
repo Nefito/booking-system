@@ -19,9 +19,15 @@ interface ResourceFormProps {
   form: UseFormReturn<ResourceFormData>;
   onSubmit: (data: ResourceFormData) => void;
   isEdit?: boolean;
+  isLoading?: boolean;
 }
 
-export function ResourceForm({ form, onSubmit, isEdit = false }: ResourceFormProps) {
+export function ResourceForm({
+  form,
+  onSubmit,
+  isEdit = false,
+  isLoading = false,
+}: ResourceFormProps) {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Use useWatch instead of form.watch() to avoid stack overflow issues in react-hook-form 7.55.0+
@@ -142,6 +148,20 @@ export function ResourceForm({ form, onSubmit, isEdit = false }: ResourceFormPro
               {form.formState.errors.thumbnail.message}
             </p>
           )}
+
+          <div className="space-y-2">
+            <Label htmlFor="location">Location</Label>
+            <Input
+              id="location"
+              {...form.register('location')}
+              placeholder="e.g., Building 1, Floor 2, Room 201"
+            />
+            {form.formState.errors.location && (
+              <p className="text-sm text-red-600 dark:text-red-400">
+                {form.formState.errors.location.message}
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -221,16 +241,35 @@ export function ResourceForm({ form, onSubmit, isEdit = false }: ResourceFormPro
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bufferTime">Buffer Time (minutes) *</Label>
+              <Label htmlFor="bufferTime">Buffer Time (minutes)</Label>
               <Input
                 id="bufferTime"
                 type="number"
                 min="0"
+                max="120"
                 {...form.register('bufferTime', { valueAsNumber: true })}
               />
               {form.formState.errors.bufferTime && (
                 <p className="text-sm text-red-600 dark:text-red-400">
                   {form.formState.errors.bufferTime.message}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="advanceBookingLimitDays">Advance Booking Limit (days)</Label>
+              <Input
+                id="advanceBookingLimitDays"
+                type="number"
+                min="1"
+                max="365"
+                {...form.register('advanceBookingLimitDays', { valueAsNumber: true })}
+              />
+              {form.formState.errors.advanceBookingLimitDays && (
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {form.formState.errors.advanceBookingLimitDays.message}
                 </p>
               )}
             </div>
@@ -248,9 +287,9 @@ export function ResourceForm({ form, onSubmit, isEdit = false }: ResourceFormPro
           <Button type="button" variant="outline" onClick={() => window.history.back()}>
             Cancel
           </Button>
-          <Button type="submit">
+          <Button type="submit" disabled={isLoading}>
             <Save className="mr-2 h-4 w-4" />
-            {isEdit ? 'Update Resource' : 'Create Resource'}
+            {isLoading ? 'Saving...' : isEdit ? 'Update Resource' : 'Create Resource'}
           </Button>
         </div>
       </div>

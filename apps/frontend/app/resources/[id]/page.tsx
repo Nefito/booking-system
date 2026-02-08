@@ -2,8 +2,10 @@
 
 import { useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import Image from 'next/image';
-import { useResources } from '@/contexts/resources-context';
+import { api } from '@/lib/api';
+import { convertBackendToFrontend } from '@/lib/utils/resource-converter';
 import { getMonthAvailability, getDayAvailability, TimeSlot } from '@/lib/mock-data';
 import { MonthCalendar } from '@/components/calendar/month-calendar';
 import { TimeSlotGrid } from '@/components/calendar/time-slot-grid';
@@ -16,19 +18,36 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NavigationMenu } from '@/components/navigation-menu';
+import { useResources } from '@/contexts/resources-context';
+import { ResourceCardSkeleton } from '@/components/resources/resource-card-skeleton';
 
 export default function ResourceBookingPage() {
   const params = useParams();
   const router = useRouter();
   const resourceId = params.id as string;
-  const { getResource, getBookings } = useResources();
-  const resource = getResource(resourceId);
+  const { getBookings } = useResources();
+
+  // Fetch resource from API
+  const {
+    data: backendResource,
+    isLoading: resourceLoading,
+    error: resourceError,
+  } = useQuery({
+    queryKey: ['resource', resourceId],
+    queryFn: async () => {
+      return api.resources.getById(resourceId);
+    },
+    enabled: !!resourceId,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+
+  const resource = backendResource ? convertBackendToFrontend(backendResource) : null;
   const bookings = getBookings(resourceId);
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const isLoading = false;
+  const isLoading = resourceLoading;
 
   // Get month availability
   const monthAvailability = useMemo(() => {
@@ -97,13 +116,25 @@ export default function ResourceBookingPage() {
     );
   };
 
-  if (!resource) {
+  if (resourceLoading) {
+    return (
+      <div className="min-h-screen bg-zinc-50 dark:bg-black p-4 sm:p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto">
+          <ResourceCardSkeleton />
+        </div>
+      </div>
+    );
+  }
+
+  if (resourceError || !resource) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-black p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center py-12">
-            <p className="text-zinc-600 dark:text-zinc-400 mb-4">Resource not found</p>
-            <Link href="/admin/resources">
+            <p className="text-zinc-600 dark:text-zinc-400 mb-4">
+              {resourceError instanceof Error ? resourceError.message : 'Resource not found'}
+            </p>
+            <Link href="/resources">
               <Button variant="outline">Back to Resources</Button>
             </Link>
           </div>
@@ -134,13 +165,19 @@ export default function ResourceBookingPage() {
           <CardContent className="p-0">
             <div className="flex flex-col md:flex-row">
               <div className="relative w-full md:w-64 h-48 md:h-64 bg-zinc-200 dark:bg-zinc-800">
-                <Image
-                  src={resource.thumbnail}
-                  alt={resource.name}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, 256px"
-                />
+                {resource.thumbnail ? (
+                  <Image
+                    src={resource.thumbnail}
+                    alt={resource.name}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 256px"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-zinc-400 dark:text-zinc-600">
+                    <span>No Image</span>
+                  </div>
+                )}
               </div>
               <div className="flex-1 p-6">
                 <div className="flex items-start justify-between mb-2">

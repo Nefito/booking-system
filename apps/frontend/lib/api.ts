@@ -1,4 +1,11 @@
 import { User, AuthResponse } from './types/auth.types';
+import {
+  BackendResource,
+  PaginatedResourcesResponse,
+  CreateResourceData,
+  UpdateResourceData,
+  QueryResourcesParams,
+} from './types/resource.types';
 import { apiWithRefresh, refreshTokenFunction } from './api-interceptor';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -91,27 +98,46 @@ async function _get<T>(endpoint: string): Promise<T> {
 }
 
 async function _post<T>(endpoint: string, data: unknown): Promise<T> {
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(data),
-  });
+  try {
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    let errorMessage = `API Error: ${response.statusText}`;
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `API Error: ${response.statusText}`;
 
-    try {
-      const errorJson = JSON.parse(errorText);
-      errorMessage = errorJson.message || errorMessage;
-    } catch {
-      errorMessage = errorText || errorMessage;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.message || errorMessage;
+      } catch {
+        errorMessage = errorText || errorMessage;
+      }
+
+      throw new ApiError(errorMessage, response.status);
     }
 
-    throw new ApiError(errorMessage, response.status);
+    return response.json();
+  } catch (error) {
+    // Handle network errors (Failed to fetch)
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      throw new ApiError(
+        `Cannot connect to backend server at ${API_URL}. Please make sure the backend is running.`,
+        0
+      );
+    }
+    // Re-throw ApiError as-is
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    // Wrap other errors
+    throw new ApiError(error instanceof Error ? error.message : 'An unexpected error occurred', 0);
   }
-
-  return response.json();
 }
 
 export const api = {
@@ -223,6 +249,110 @@ export const api = {
     async resetPassword(token: string, password: string) {
       // Use _post directly (no interceptor for public endpoints)
       return _post<{ message: string }>('/auth/reset-password', { token, password });
+    },
+  },
+
+  // Resource-specific API methods
+  resources: {
+    /**
+     * Get paginated list of resources
+     */
+    async getAll(queryParams?: QueryResourcesParams): Promise<PaginatedResourcesResponse> {
+      const params = new URLSearchParams();
+
+      if (queryParams) {
+        if (queryParams.page) params.append('page', queryParams.page.toString());
+        if (queryParams.limit) params.append('limit', queryParams.limit.toString());
+        if (queryParams.search) params.append('search', queryParams.search);
+        if (queryParams.status) params.append('status', queryParams.status);
+        if (queryParams.categoryId) params.append('categoryId', queryParams.categoryId);
+        if (queryParams.availableDays && queryParams.availableDays.length > 0) {
+          queryParams.availableDays.forEach((day) => params.append('availableDays', day));
+        }
+        if (queryParams.sortBy) params.append('sortBy', queryParams.sortBy);
+        if (queryParams.sortOrder) params.append('sortOrder', queryParams.sortOrder);
+      }
+
+      const queryString = params.toString();
+      const endpoint = queryString ? `/resources?${queryString}` : '/resources';
+      return api.get<PaginatedResourcesResponse>(endpoint);
+    },
+
+    /**
+     * Get single resource by ID or slug
+     */
+    async getById(id: string): Promise<BackendResource> {
+      return api.get<BackendResource>(`/resources/${id}`);
+    },
+
+    /**
+     * Create new resource
+     */
+    async create(data: CreateResourceData): Promise<BackendResource> {
+      return api.post<BackendResource>('/resources', data);
+    },
+
+    /**
+     * Update resource
+     */
+    async update(id: string, data: UpdateResourceData): Promise<BackendResource> {
+      // Use PUT method with interceptor
+      return apiWithRefresh(async () => {
+        const response = await fetch(`${API_URL}/resources/${id}`, {
+          method: 'PUT',
+          headers: {
+            ...getAuthHeaders(),
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorMessage = `API Error: ${response.statusText}`;
+
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorMessage = errorJson.message || errorMessage;
+          } catch {
+            errorMessage = errorText || errorMessage;
+          }
+
+          throw new ApiError(errorMessage, response.status);
+        }
+
+        return response.json();
+      }, refreshTokenFunction);
+    },
+
+    /**
+     * Delete resource
+     */
+    async delete(id: string, hardDelete: boolean = false): Promise<{ message: string }> {
+      const endpoint = hardDelete ? `/resources/${id}?hardDelete=true` : `/resources/${id}`;
+      // Use DELETE method with interceptor
+      return apiWithRefresh(async () => {
+        const response = await fetch(`${API_URL}${endpoint}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders(),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorMessage = `API Error: ${response.statusText}`;
+
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorMessage = errorJson.message || errorMessage;
+          } catch {
+            errorMessage = errorText || errorMessage;
+          }
+
+          throw new ApiError(errorMessage, response.status);
+        }
+
+        return response.json();
+      }, refreshTokenFunction);
     },
   },
 };

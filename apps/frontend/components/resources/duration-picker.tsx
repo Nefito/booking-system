@@ -20,13 +20,11 @@ const durationOptions = [
 ];
 
 export function DurationPicker({ value, onChange, label = 'Duration' }: DurationPickerProps) {
+  const safeValue = value ?? 60; // Default to 60 minutes if undefined
   return (
     <div className="space-y-2">
       {label && <Label>{label}</Label>}
-      <Select
-        value={value.toString()}
-        onChange={(e) => onChange(Number(e.target.value))}
-      >
+      <Select value={safeValue.toString()} onChange={(e) => onChange(Number(e.target.value))}>
         {durationOptions.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
@@ -36,4 +34,3 @@ export function DurationPicker({ value, onChange, label = 'Duration' }: Duration
     </div>
   );
 }
-
