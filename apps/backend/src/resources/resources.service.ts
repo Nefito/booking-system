@@ -7,10 +7,14 @@ import { UpdateResourceDto } from './dto/update-resource.dto';
 import { QueryResourcesDto } from './dto/query-resources.dto';
 import { ResourceResponseDto } from './dto/resource-response.dto';
 import { SlugUtil } from './utils/slug.util';
+import { BlobService } from '../storage/blob.service';
 
 @Injectable()
 export class ResourcesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private blobService: BlobService
+  ) {}
 
   /**
    * Create a new resource
@@ -211,24 +215,30 @@ export class ResourcesService {
    *
    * FLOW:
    * 1. Find resource by ID
-   * 2. If name changed, regenerate slug
-   * 3. Validate category if changed
-   * 4. Update resource
-   * 5. Return updated resource
+   * 2. Handle image update (delete old if needed)
+   * 3. Regenerate slug if name changed
+   * 4. Validate category if changed
+   * 5. Update resource
+   * 6. Return updated resource
    *
    * NOTE: Changes only affect future bookings (existing bookings unchanged)
    */
   async update(id: string, updateResourceDto: UpdateResourceDto): Promise<ResourceResponseDto> {
     // STEP 1: Find resource
     const existing = await this.prisma.resource.findUnique({
-      where: { id },
+      where: { id, deletedAt: null },
     });
 
-    if (!existing || existing.deletedAt) {
+    if (!existing) {
       throw new NotFoundException(`Resource with ID ${id} not found`);
     }
 
-    // STEP 2: Regenerate slug if name changed
+    // STEP 2: Handle image update (delete old image if needed)
+    if (updateResourceDto.imageUrl !== undefined) {
+      this.handleImageUpdate(existing.imageUrl, updateResourceDto.imageUrl);
+    }
+
+    // STEP 3: Regenerate slug if name changed
     let slug = existing.slug;
     if (updateResourceDto.name && updateResourceDto.name !== existing.name) {
       slug = await SlugUtil.generateUnique(updateResourceDto.name, async (newSlug) => {
@@ -239,7 +249,7 @@ export class ResourcesService {
       });
     }
 
-    // STEP 3: Validate category if changed
+    // STEP 4: Validate category if changed
     if (updateResourceDto.categoryId && updateResourceDto.categoryId !== existing.categoryId) {
       const category = await this.prisma.category.findUnique({
         where: { id: updateResourceDto.categoryId },
@@ -249,7 +259,7 @@ export class ResourcesService {
       }
     }
 
-    // STEP 4: Update resource
+    // STEP 5: Update resource
     const resource = await this.prisma.resource.update({
       where: { id },
       data: {
@@ -262,7 +272,7 @@ export class ResourcesService {
       },
     });
 
-    // STEP 5: Return updated resource
+    // STEP 6: Return updated resource
     return this.formatResourceResponse(resource);
   }
 
@@ -320,6 +330,34 @@ export class ResourcesService {
         },
       });
       return { message: 'Resource deleted (soft delete)' };
+    }
+  }
+
+  /**
+   * Handle image deletion when imageUrl is updated
+   *
+   * FLOW:
+   * 1. Check if old image should be deleted
+   * 2. Delete old image from blob storage (async, non-blocking)
+   *
+   * WHY: Clean up old images when they're replaced or removed
+   */
+  private handleImageUpdate(
+    oldImageUrl: string | null | undefined,
+    newImageUrl: string | null | undefined
+  ): void {
+    // Only delete if:
+    // 1. There was an old image
+    // 2. The new image is different (or being removed/null)
+    // 3. The old image is a blob URL (not external)
+    const shouldDelete =
+      oldImageUrl && newImageUrl !== oldImageUrl && this.blobService.isBlobUrl(oldImageUrl);
+
+    if (shouldDelete) {
+      // Delete old image asynchronously (don't block update)
+      this.blobService.deleteFile(oldImageUrl).catch((error) => {
+        console.error('Failed to delete old image:', error);
+      });
     }
   }
 

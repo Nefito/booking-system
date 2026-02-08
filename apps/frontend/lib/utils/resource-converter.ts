@@ -122,10 +122,6 @@ export function convertBackendToFrontend(backend: BackendResource): FrontendReso
   // Convert available days
   const availableDays = convertAvailableDays(backend.availableDays);
 
-  // Use placeholder image if no imageUrl provided
-  const placeholderImage =
-    'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=300&fit=crop';
-
   return {
     id: backend.id,
     name: backend.name,
@@ -133,7 +129,7 @@ export function convertBackendToFrontend(backend: BackendResource): FrontendReso
     description: backend.description || '',
     category,
     status: backend.status,
-    thumbnail: backend.imageUrl || placeholderImage,
+    thumbnail: backend.imageUrl || undefined, // No placeholder - use undefined for empty state
     duration: backend.durationMinutes,
     capacity: backend.capacity,
     price: Number(backend.price), // Convert Decimal to number
@@ -179,8 +175,12 @@ export function convertFrontendToBackend(
     name: (frontend.name as string) || '',
     description: frontend.description as string | undefined,
     status: frontend.status as 'active' | 'inactive' | undefined,
-    imageUrl: (frontend.thumbnail as string) || undefined,
-    location: frontend.location as string | undefined,
+    imageUrl:
+      frontend.thumbnail &&
+      typeof frontend.thumbnail === 'string' &&
+      frontend.thumbnail.trim() !== ''
+        ? frontend.thumbnail
+        : null, // Explicitly set to null to clear image
     durationMinutes: (frontend.duration as number) || 60,
     operatingStart: operatingHours.start,
     operatingEnd: operatingHours.end,

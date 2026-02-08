@@ -1,12 +1,13 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Upload, X, Link as LinkIcon } from 'lucide-react';
+import { Upload, X, Link as LinkIcon, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { api } from '@/lib/api';
 
 interface ImageUploaderProps {
   value?: string;
@@ -23,7 +24,10 @@ export function ImageUploader({ value, onChange, label = 'Image' }: ImageUploade
 
   const [mode, setMode] = useState<'upload' | 'url'>(() => getModeFromValue(value));
   const [urlInput, setUrlInput] = useState<string>('');
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Track uploaded blob URLs that haven't been saved to a resource yet
+  const uploadedBlobUrlRef = useRef<string | null>(null);
 
   // Derive display values from props
   const preview = value || null;
@@ -34,26 +38,93 @@ export function ImageUploader({ value, onChange, label = 'Image' }: ImageUploade
   const displayUrl = urlInput || value || '';
   const inputKey = value || 'empty';
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Create a preview URL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        onChange(result);
-      };
-      reader.readAsDataURL(file);
+  const processFile = async (file: File) => {
+    if (!file) return;
+
+    // Validate file size (5MB max)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      alert('File size must be less than 5MB');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Invalid file type. Please upload an image (JPEG, PNG, GIF, or WebP)');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      // Upload to cloud storage
+      const result = await api.storage.uploadImage(file, 'resources');
+
+      // Track this blob URL for cleanup if removed before saving
+      uploadedBlobUrlRef.current = result.url;
+
+      // Update form with cloud URL (short, < 250 chars)
+      onChange(result.url);
+
+      // Clear file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+      alert(
+        error instanceof Error
+          ? `Failed to upload image: ${error.message}`
+          : 'Failed to upload image. Please try again.'
+      );
+    } finally {
+      setIsUploading(false);
     }
   };
 
-  const handleUrlChange = (url: string) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await processFile(file);
+    }
+  };
+
+  const handleUrlChange = async (url: string) => {
+    // If switching from blob URL to external URL, delete the blob URL
+    const currentUrl = value || uploadedBlobUrlRef.current;
+    if (currentUrl && isBlobUrl(currentUrl) && url && isValidUrl(url) && !isBlobUrl(url)) {
+      // User is replacing blob URL with external URL - delete the blob
+      if (uploadedBlobUrlRef.current === currentUrl) {
+        await deleteBlobUrl(currentUrl);
+        uploadedBlobUrlRef.current = null;
+      }
+    }
+
     // Only call onChange for valid URLs or empty string
     // This allows typing invalid URLs without triggering onChange
     if (url && isValidUrl(url)) {
+      // If it's a blob URL, track it
+      if (isBlobUrl(url)) {
+        uploadedBlobUrlRef.current = url;
+      } else {
+        // External URL - clear tracked blob URL
+        uploadedBlobUrlRef.current = null;
+      }
       onChange(url);
       setUrlInput(''); // Clear local state after valid URL is set
     } else if (!url) {
+      // If clearing and we have a tracked blob URL, delete it
+      if (uploadedBlobUrlRef.current) {
+        await deleteBlobUrl(uploadedBlobUrlRef.current);
+        uploadedBlobUrlRef.current = null;
+      }
       onChange('');
       setUrlInput('');
     } else {
@@ -74,7 +145,20 @@ export function ImageUploader({ value, onChange, label = 'Image' }: ImageUploade
     }
   };
 
-  const handleRemove = () => {
+  const handleRemove = async () => {
+    // If removing a blob URL, delete it from storage
+    const currentUrl = value;
+    if (currentUrl && isBlobUrl(currentUrl)) {
+      try {
+        await api.storage.deleteImage(currentUrl);
+      } catch (error) {
+        // Log error but continue with removal - cleanup is best effort
+        console.error('Failed to delete blob image:', error);
+      }
+    }
+
+    // Clear tracking
+    uploadedBlobUrlRef.current = null;
     setUrlInput('');
     onChange('');
     if (fileInputRef.current) {
@@ -82,17 +166,12 @@ export function ImageUploader({ value, onChange, label = 'Image' }: ImageUploade
     }
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        onChange(result);
-        setMode('upload');
-      };
-      reader.readAsDataURL(file);
+      await processFile(file);
+      setMode('upload');
     }
   };
 
@@ -106,6 +185,24 @@ export function ImageUploader({ value, onChange, label = 'Image' }: ImageUploade
     return src.startsWith('data:') || src.startsWith('blob:');
   };
 
+  // Check if URL is a Vercel Blob URL
+  const isBlobUrl = (url: string | null | undefined): boolean => {
+    if (!url) return false;
+    return url.includes('blob.vercel-storage.com');
+  };
+
+  // Delete blob URL from storage
+  const deleteBlobUrl = useCallback(async (url: string) => {
+    if (!url.includes('blob.vercel-storage.com')) return;
+
+    try {
+      await api.storage.deleteImage(url);
+    } catch (error) {
+      // Log error but don't block UI - cleanup is best effort
+      console.error('Failed to delete blob image:', error);
+    }
+  }, []);
+
   // Render image - use regular img tag for data/blob URIs, Next.js Image for regular URLs
   const renderImage = (src: string, alt: string) => {
     if (isDataOrBlobUri(src)) {
@@ -116,6 +213,34 @@ export function ImageUploader({ value, onChange, label = 'Image' }: ImageUploade
     }
     return <Image src={src} alt={alt} fill className="object-cover" sizes="100vw" />;
   };
+
+  // Cleanup: Delete blob URL on unmount if it hasn't been saved
+  useEffect(() => {
+    return () => {
+      // On unmount, if we have an unsaved blob URL, delete it
+      if (uploadedBlobUrlRef.current) {
+        deleteBlobUrl(uploadedBlobUrlRef.current).catch((error) => {
+          console.error('Failed to cleanup blob URL on unmount:', error);
+        });
+      }
+    };
+  }, [deleteBlobUrl]);
+
+  // Reset tracked blob URL when value changes externally (e.g., form reset, edit mode, form saved)
+  useEffect(() => {
+    if (!value) {
+      // Value cleared externally
+      uploadedBlobUrlRef.current = null;
+    } else if (value === uploadedBlobUrlRef.current) {
+      // Value matches our tracked URL - this means the form was saved successfully
+      // Clear tracking since the image is now part of the saved resource
+      uploadedBlobUrlRef.current = null;
+    } else if (value && value !== uploadedBlobUrlRef.current) {
+      // Value is different - this is an existing resource image or external URL
+      // Don't track for cleanup
+      uploadedBlobUrlRef.current = null;
+    }
+  }, [value]);
 
   return (
     <div className="space-y-2">
@@ -129,6 +254,7 @@ export function ImageUploader({ value, onChange, label = 'Image' }: ImageUploade
           size="sm"
           onClick={() => setMode('upload')}
           className="rounded-b-none"
+          disabled={isUploading}
         >
           <Upload className="mr-2 h-4 w-4" />
           Upload
@@ -139,6 +265,7 @@ export function ImageUploader({ value, onChange, label = 'Image' }: ImageUploade
           size="sm"
           onClick={() => setMode('url')}
           className="rounded-b-none"
+          disabled={isUploading}
         >
           <LinkIcon className="mr-2 h-4 w-4" />
           URL
@@ -153,6 +280,7 @@ export function ImageUploader({ value, onChange, label = 'Image' }: ImageUploade
             placeholder="https://example.com/image.jpg"
             value={displayUrl}
             onChange={(e) => handleUrlChange(e.target.value)}
+            disabled={isUploading}
           />
           {displayUrl && !isValidUrl(displayUrl) && (
             <p className="text-sm text-red-600 dark:text-red-400">Please enter a valid URL</p>
@@ -163,12 +291,18 @@ export function ImageUploader({ value, onChange, label = 'Image' }: ImageUploade
           className={cn(
             'relative border-2 border-dashed rounded-lg p-4 transition-colors',
             'border-zinc-300 dark:border-zinc-700',
-            'hover:border-zinc-400 dark:hover:border-zinc-600'
+            'hover:border-zinc-400 dark:hover:border-zinc-600',
+            isUploading && 'opacity-50 pointer-events-none'
           )}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
         >
-          {preview ? (
+          {isUploading ? (
+            <div className="flex flex-col items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 text-blue-600 animate-spin mb-2" />
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">Uploading image...</p>
+            </div>
+          ) : preview ? (
             <div className="relative w-full h-48 rounded-md overflow-hidden bg-zinc-200 dark:bg-zinc-800">
               {renderImage(preview, 'Preview')}
               <Button
@@ -196,7 +330,11 @@ export function ImageUploader({ value, onChange, label = 'Image' }: ImageUploade
                 accept="image/*"
                 onChange={handleFileChange}
                 className="hidden"
+                disabled={isUploading}
               />
+              <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-2">
+                Max size: 5MB. Formats: JPEG, PNG, GIF, WebP
+              </p>
             </div>
           )}
         </div>

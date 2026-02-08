@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { Calendar, Clock, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { CategoryBadge } from '@/components/resources/category-badge';
+import { ImagePlaceholder } from '@/components/resources/image-placeholder';
 
 interface BookingSummaryCardProps {
   resource: Resource;
@@ -47,14 +48,18 @@ export function BookingSummaryCard({
     <Card>
       <CardContent className="p-0">
         <div className="flex flex-col md:flex-row">
-          <div className="relative w-full md:w-48 h-48 bg-zinc-200 dark:bg-zinc-800">
-            <Image
-              src={resource.thumbnail}
-              alt={resource.name}
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, 192px"
-            />
+          <div className="relative w-full md:w-48 h-48">
+            {resource.thumbnail ? (
+              <Image
+                src={resource.thumbnail}
+                alt={resource.name}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 192px"
+              />
+            ) : (
+              <ImagePlaceholder />
+            )}
           </div>
           <div className="flex-1 p-6">
             <div className="flex items-start justify-between mb-4">

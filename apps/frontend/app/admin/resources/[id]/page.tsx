@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CategoryBadge } from '@/components/resources/category-badge';
+import { ImagePlaceholder } from '@/components/resources/image-placeholder';
 import { ArrowLeft, Edit, Trash2, Calendar, DollarSign, Users, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -80,7 +81,7 @@ export default function ResourceDetailPage() {
 
       {/* Hero Section */}
       <Card className="overflow-hidden">
-        <div className="relative h-64 md:h-96 w-full bg-zinc-200 dark:bg-zinc-800">
+        <div className="relative h-64 md:h-96 w-full">
           {resource.thumbnail ? (
             <Image
               src={resource.thumbnail}
@@ -90,9 +91,7 @@ export default function ResourceDetailPage() {
               sizes="100vw"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-zinc-400 dark:text-zinc-600">
-              <span>No Image</span>
-            </div>
+            <ImagePlaceholder size="lg" />
           )}
           <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
           <div className="absolute bottom-6 left-6 right-6">

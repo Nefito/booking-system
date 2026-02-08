@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { ImagePlaceholder } from '@/components/resources/image-placeholder';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NavigationMenu } from '@/components/navigation-menu';
 import { useResources } from '@/contexts/resources-context';
@@ -169,7 +170,7 @@ export default function ResourceBookingPage() {
         <Card className="mb-6">
           <CardContent className="p-0">
             <div className="flex flex-col md:flex-row">
-              <div className="relative w-full md:w-64 h-48 md:h-64 bg-zinc-200 dark:bg-zinc-800">
+              <div className="relative w-full md:w-64 h-48 md:h-64">
                 {resource.thumbnail ? (
                   <Image
                     src={resource.thumbnail}
@@ -179,9 +180,7 @@ export default function ResourceBookingPage() {
                     sizes="(max-width: 768px) 100vw, 256px"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-zinc-400 dark:text-zinc-600">
-                    <span>No Image</span>
-                  </div>
+                  <ImagePlaceholder />
                 )}
               </div>
               <div className="flex-1 p-6">

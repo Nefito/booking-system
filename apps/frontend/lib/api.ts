@@ -362,6 +362,85 @@ export const api = {
       }, refreshTokenFunction);
     },
   },
+
+  // Storage-specific API methods
+  storage: {
+    /**
+     * Upload image file to cloud storage
+     * @param file - File object from input
+     * @param folder - Folder name (default: 'resources')
+     * @returns Object with url, fileName, size, mimeType
+     */
+    async uploadImage(
+      file: File,
+      folder: string = 'resources'
+    ): Promise<{ url: string; fileName: string; size: number; mimeType: string }> {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', folder);
+
+      return apiWithRefresh(async () => {
+        const token = typeof window !== 'undefined' ? localStorage.getItem(AUTH_TOKEN_KEY) : null;
+
+        const response = await fetch(`${API_URL}/storage/upload`, {
+          method: 'POST',
+          headers: {
+            Authorization: token ? `Bearer ${token}` : '',
+            // Don't set Content-Type - browser will set it with boundary for multipart/form-data
+          },
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorMessage = `Upload failed: ${response.statusText}`;
+
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorMessage = errorJson.message || errorMessage;
+          } catch {
+            errorMessage = errorText || errorMessage;
+          }
+
+          throw new ApiError(errorMessage, response.status);
+        }
+
+        return response.json();
+      }, refreshTokenFunction);
+    },
+
+    /**
+     * Delete image from cloud storage
+     * @param url - Full URL of the image to delete
+     */
+    async deleteImage(url: string): Promise<{ message: string }> {
+      return apiWithRefresh(async () => {
+        const response = await fetch(`${API_URL}/storage/delete`, {
+          method: 'DELETE',
+          headers: {
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify({ url }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorMessage = `Delete failed: ${response.statusText}`;
+
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorMessage = errorJson.message || errorMessage;
+          } catch {
+            errorMessage = errorText || errorMessage;
+          }
+
+          throw new ApiError(errorMessage, response.status);
+        }
+
+        return response.json();
+      }, refreshTokenFunction);
+    },
+  },
 };
 
 // API endpoints

@@ -7,11 +7,11 @@ import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
-
 import { ResourcesModule } from './resources/resources.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
-  imports: [AuthModule, ResourcesModule],
+  imports: [AuthModule, ResourcesModule, StorageModule],
 
   controllers: [AppController],
 
@@ -19,9 +19,6 @@ import { ResourcesModule } from './resources/resources.module';
     AppService,
     PrismaService,
     Reflector, // Needed for reading decorator metadata in guards
-
-    // OPTIONAL: Make JWT guard global
-    // Use @Public() to make specific routes public
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

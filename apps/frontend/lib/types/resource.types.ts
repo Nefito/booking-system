@@ -52,7 +52,7 @@ export interface FrontendResource {
   description: string;
   category: ResourceCategory;
   status: ResourceStatus;
-  thumbnail: string;
+  thumbnail?: string; // Optional - undefined when no image
   duration: number; // in minutes
   capacity: number;
   price: number;
@@ -76,7 +76,7 @@ export interface CreateResourceData {
   name: string;
   description?: string;
   status?: ResourceStatus;
-  imageUrl?: string;
+  imageUrl?: string | null;
   location?: string;
   durationMinutes: number;
   operatingStart?: string;
