@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Booking } from '@/lib/mock-data';
+import { Booking } from '@/lib/types/booking.types';
 import { RefundSummary } from './refund-summary';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

@@ -48,6 +48,7 @@ export type ResourceCategory = 'meeting-room' | 'workspace' | 'equipment' | 'ven
 export interface FrontendResource {
   id: string;
   name: string;
+  slug: string;
   description: string;
   category: ResourceCategory;
   status: ResourceStatus;

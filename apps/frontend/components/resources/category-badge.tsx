@@ -1,5 +1,6 @@
-import { Badge } from "@/components/ui/badge";
-import { ResourceCategory, categoryLabels } from "@/lib/mock-data";
+import { Badge } from '@/components/ui/badge';
+import { ResourceCategory } from '@/lib/types/resource.types';
+import { categoryLabels } from '@/lib/constants/categories';
 
 interface CategoryBadgeProps {
   category: ResourceCategory;
@@ -7,12 +8,12 @@ interface CategoryBadgeProps {
 }
 
 export function CategoryBadge({ category, className }: CategoryBadgeProps) {
-  const variantMap: Record<ResourceCategory, "default" | "secondary" | "outline"> = {
+  const variantMap: Record<ResourceCategory, 'default' | 'secondary' | 'outline'> = {
     'meeting-room': 'default',
-    'workspace': 'secondary',
-    'equipment': 'outline',
-    'venue': 'default',
-    'vehicle': 'secondary',
+    workspace: 'secondary',
+    equipment: 'outline',
+    venue: 'default',
+    vehicle: 'secondary',
   };
 
   return (
@@ -21,4 +22,3 @@ export function CategoryBadge({ category, className }: CategoryBadgeProps) {
     </Badge>
   );
 }
-

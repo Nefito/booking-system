@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { Resource } from '@/lib/mock-data';
+import { FrontendResource as Resource } from '@/lib/types/resource.types';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CategoryBadge } from './category-badge';

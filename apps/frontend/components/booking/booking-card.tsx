@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Booking } from '@/lib/mock-data';
+import { Booking } from '@/lib/types/booking.types';
 import { Card, CardContent } from '@/components/ui/card';
 import { BookingStatusBadge } from './booking-status-badge';
 import { Button } from '@/components/ui/button';

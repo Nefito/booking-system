@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { Resource } from '@/lib/mock-data';
+import { FrontendResource as Resource } from '@/lib/types/resource.types';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { CategoryBadge } from './category-badge';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ export function PublicResourceCard({ resource }: PublicResourceCardProps) {
 
   return (
     <Card className="overflow-visible transition-all duration-200 hover:shadow-lg hover:scale-[1.02] group h-full flex flex-col">
-      <Link href={`/resources/${resource.id}`} className="block flex-1 flex flex-col">
+      <Link href={`/resources/${resource.slug}`} className="flex-1 flex flex-col">
         <div className="relative h-48 w-full overflow-hidden bg-zinc-200 dark:bg-zinc-800 cursor-pointer">
           {resource.thumbnail ? (
             <Image
@@ -59,7 +59,7 @@ export function PublicResourceCard({ resource }: PublicResourceCardProps) {
         </CardContent>
       </Link>
       <CardFooter className="p-4 pt-0">
-        <Link href={`/resources/${resource.id}`} className="w-full">
+        <Link href={`/resources/${resource.slug}`} className="w-full">
           <Button className="w-full" variant="default">
             Book Now
             <ArrowRight className="ml-2 h-4 w-4" />

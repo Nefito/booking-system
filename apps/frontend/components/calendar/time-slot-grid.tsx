@@ -1,6 +1,6 @@
 'use client';
 
-import { TimeSlot } from '@/lib/mock-data';
+import { TimeSlot } from '@/lib/types/availability.types';
 import { cn } from '@/lib/utils';
 import { Clock } from 'lucide-react';
 

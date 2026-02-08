@@ -6,7 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import Image from 'next/image';
 import { api } from '@/lib/api';
 import { convertBackendToFrontend } from '@/lib/utils/resource-converter';
-import { getMonthAvailability, getDayAvailability, TimeSlot } from '@/lib/mock-data';
+import { getMonthAvailability, getDayAvailability } from '@/lib/utils/availability-utils';
+import { TimeSlot } from '@/lib/types/availability.types';
 import { MonthCalendar } from '@/components/calendar/month-calendar';
 import { TimeSlotGrid } from '@/components/calendar/time-slot-grid';
 import { SlotSummary } from '@/components/calendar/slot-summary';
@@ -24,25 +25,29 @@ import { ResourceCardSkeleton } from '@/components/resources/resource-card-skele
 export default function ResourceBookingPage() {
   const params = useParams();
   const router = useRouter();
-  const resourceId = params.id as string;
+  const resourceSlug = params.id as string; // This is actually a slug now
   const { getBookings } = useResources();
 
-  // Fetch resource from API
+  // Fetch resource from API by slug
   const {
     data: backendResource,
     isLoading: resourceLoading,
     error: resourceError,
   } = useQuery({
-    queryKey: ['resource', resourceId],
+    queryKey: ['resource', resourceSlug],
     queryFn: async () => {
-      return api.resources.getById(resourceId);
+      return api.resources.getBySlug(resourceSlug);
     },
-    enabled: !!resourceId,
+    enabled: !!resourceSlug,
     staleTime: 30 * 1000, // 30 seconds
   });
 
   const resource = backendResource ? convertBackendToFrontend(backendResource) : null;
-  const bookings = getBookings(resourceId);
+
+  // Memoize bookings to prevent unnecessary recalculations
+  const bookings = useMemo(() => {
+    return resource ? getBookings(resource.id) : []; // Use ID for bookings lookup
+  }, [resource, getBookings]);
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
@@ -110,9 +115,9 @@ export default function ResourceBookingPage() {
     const day = selectedDate.getDate();
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-    // Navigate to booking form with query params
+    // Navigate to booking form with query params (using slug)
     router.push(
-      `/book/${resourceId}?date=${dateStr}&start=${selectedSlot.start}&end=${selectedSlot.end}`
+      `/book/${resource.slug}?date=${dateStr}&start=${selectedSlot.start}&end=${selectedSlot.end}`
     );
   };
 

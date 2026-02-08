@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+
 import { PrismaService } from '../prisma.service';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
@@ -91,35 +93,28 @@ export class ResourcesService {
     const skip = (page - 1) * limit;
 
     // STEP 1: Build where clause
-    const where: any = {
+    const where = {
       deletedAt: null, // Only non-deleted resources
+      status,
+      categoryId,
+      OR: search
+        ? [
+            { name: { contains: search, mode: Prisma.QueryMode.insensitive } },
+            { description: { contains: search, mode: Prisma.QueryMode.insensitive } },
+            { location: { contains: search, mode: Prisma.QueryMode.insensitive } },
+          ]
+        : undefined,
+      availableDays: availableDays?.length
+        ? {
+            hasSome: availableDays,
+          }
+        : undefined,
     };
 
-    if (status) {
-      where.status = status;
-    }
-
-    if (categoryId) {
-      where.categoryId = categoryId;
-    }
-
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { location: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    if (availableDays && availableDays.length > 0) {
-      where.availableDays = {
-        hasSome: availableDays,
-      };
-    }
-
     // STEP 2: Build orderBy
-    const orderBy: any = {};
-    orderBy[sortBy] = sortOrder;
+    const orderBy = {
+      [sortBy]: sortOrder,
+    };
 
     // STEP 3 & 4: Query database
     const [resources, total] = await Promise.all([
@@ -146,25 +141,21 @@ export class ResourcesService {
       },
     };
   }
-
   /**
-   * Get single resource by ID or slug
+   * Get single resource by ID
    *
    * FLOW:
-   * 1. Determine if identifier is UUID or slug
-   * 2. Query database
-   * 3. Check if resource exists
-   * 4. Return resource
+   * 1. Query database by ID
+   * 2. Check if resource exists
+   * 3. Return resource
    */
-  async findOne(identifier: string): Promise<ResourceResponseDto> {
-    // STEP 1: Check if identifier is UUID (36 chars) or slug
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      identifier
-    );
-
-    // STEP 2: Query database
+  async findOneById(id: string): Promise<ResourceResponseDto> {
+    // STEP 1: Query database
     const resource = await this.prisma.resource.findUnique({
-      where: isUuid ? { id: identifier } : { slug: identifier },
+      where: {
+        id,
+        deletedAt: null,
+      },
       include: {
         category: true,
         _count: {
@@ -175,12 +166,43 @@ export class ResourcesService {
       },
     });
 
-    // STEP 3: Check if exists
-    if (!resource || resource.deletedAt) {
-      throw new NotFoundException(`Resource with identifier ${identifier} not found`);
+    // STEP 2: Check if exists
+    if (!resource) {
+      throw new NotFoundException(`Resource with ID ${id} not found`);
     }
 
-    // STEP 4: Return resource
+    // STEP 3: Return resource
+    return this.formatResourceResponse(resource);
+  }
+
+  /**
+   * Get single resource by slug
+   *
+   * FLOW:
+   * 1. Query database by slug
+   * 2. Check if resource exists and is not deleted
+   * 3. Return resource
+   */
+  async findOneBySlug(slug: string): Promise<ResourceResponseDto> {
+    const resource = await this.prisma.resource.findUnique({
+      where: {
+        slug,
+        deletedAt: null,
+      },
+      include: {
+        category: true,
+        _count: {
+          select: {
+            bookings: true,
+          },
+        },
+      },
+    });
+
+    if (!resource) {
+      throw new NotFoundException(`Resource with slug ${slug} not found`);
+    }
+
     return this.formatResourceResponse(resource);
   }
 

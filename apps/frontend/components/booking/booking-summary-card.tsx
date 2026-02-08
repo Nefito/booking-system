@@ -1,6 +1,7 @@
 'use client';
 
-import { Resource, TimeSlot } from '@/lib/mock-data';
+import { FrontendResource as Resource } from '@/lib/types/resource.types';
+import { TimeSlot } from '@/lib/types/availability.types';
 import { Card, CardContent } from '@/components/ui/card';
 import Image from 'next/image';
 import { Calendar, Clock, DollarSign } from 'lucide-react';

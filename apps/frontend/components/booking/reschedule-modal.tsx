@@ -1,15 +1,20 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Booking, Resource } from '@/lib/mock-data';
+import { Booking } from '@/lib/types/booking.types';
+import { FrontendResource as Resource } from '@/lib/types/resource.types';
 import { MonthCalendar } from '@/components/calendar/month-calendar';
 import { TimeSlotGrid } from '@/components/calendar/time-slot-grid';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { X, Calendar, Clock, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import { generateTimeSlots, getDayAvailability, getMonthAvailability } from '@/lib/mock-data';
-import type { TimeSlot, DayAvailabilityStatus } from '@/lib/mock-data';
+import {
+  generateTimeSlots,
+  getDayAvailability,
+  getMonthAvailability,
+} from '@/lib/utils/availability-utils';
+import type { TimeSlot, DayAvailabilityStatus } from '@/lib/types/availability.types';
 
 interface RescheduleModalProps {
   booking: Booking;

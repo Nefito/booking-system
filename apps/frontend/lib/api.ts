@@ -279,10 +279,17 @@ export const api = {
     },
 
     /**
-     * Get single resource by ID or slug
+     * Get single resource by ID
      */
     async getById(id: string): Promise<BackendResource> {
       return api.get<BackendResource>(`/resources/${id}`);
+    },
+
+    /**
+     * Get single resource by slug
+     */
+    async getBySlug(slug: string): Promise<BackendResource> {
+      return api.get<BackendResource>(`/resources/slug/${slug}`);
     },
 
     /**

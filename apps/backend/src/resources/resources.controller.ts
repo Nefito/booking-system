@@ -57,6 +57,16 @@ export class ResourcesController {
   }
 
   /**
+   * GET /resources/slug/:slug
+   *
+   * PURPOSE: Get single resource by slug (for public-facing routes)
+   * AUTH: Requires authentication
+   */
+  @Get('slug/:slug')
+  async findOneBySlug(@Param('slug') slug: string): Promise<ResourceResponseDto> {
+    return this.resourcesService.findOneBySlug(slug);
+  }
+  /**
    * GET /resources/:id
    *
    * PURPOSE: Get single resource by ID or slug
@@ -64,7 +74,7 @@ export class ResourcesController {
    */
   @Get(':id')
   async findOne(@Param('id') id: string): Promise<ResourceResponseDto> {
-    return this.resourcesService.findOne(id);
+    return this.resourcesService.findOneById(id);
   }
 
   /**

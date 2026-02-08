@@ -2,15 +2,11 @@
 
 import { createContext, useContext, useCallback, useMemo, ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Resource,
-  Booking,
-  BookingStatus,
-  normalizedBookings as initialBookings,
-} from '@/lib/mock-data';
+import { FrontendResource as Resource } from '@/lib/types/resource.types';
+import { Booking, BookingStatus } from '@/lib/types/booking.types';
+import { normalizedBookings as initialBookings } from '@/lib/mock-data/bookings';
 import { api } from '@/lib/api';
 import { convertBackendToFrontend, convertFrontendToBackend } from '@/lib/utils/resource-converter';
-import { FrontendResource } from '@/lib/types/resource.types';
 
 interface ResourcesContextValue {
   resources: Resource[];
@@ -68,7 +64,7 @@ export function ResourcesProvider({ children }: { children: ReactNode }) {
         'id' | 'createdAt' | 'updatedAt' | 'bookingCount' | 'revenue' | 'utilization'
       >
     ) => {
-      const backendData = convertFrontendToBackend(data as Partial<FrontendResource>);
+      const backendData = convertFrontendToBackend(data as Partial<Resource>);
       const backendResource = await api.resources.create(backendData);
       return convertBackendToFrontend(backendResource);
     },
@@ -80,7 +76,7 @@ export function ResourcesProvider({ children }: { children: ReactNode }) {
   // Update resource mutation
   const updateResourceMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Resource> }) => {
-      const backendData = convertFrontendToBackend(data as Partial<FrontendResource>);
+      const backendData = convertFrontendToBackend(data as Partial<Resource>);
       const backendResource = await api.resources.update(id, backendData);
       return convertBackendToFrontend(backendResource);
     },

@@ -1,6 +1,6 @@
 'use client';
 
-import { BookingTimelineEvent } from '@/lib/mock-data';
+import { BookingTimelineEvent } from '@/lib/types/booking.types';
 import { format } from 'date-fns';
 import { CheckCircle2, XCircle, Clock, Edit, Calendar } from 'lucide-react';
 

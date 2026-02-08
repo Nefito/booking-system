@@ -2,8 +2,12 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { useResources } from '@/contexts/resources-context';
-import { getDayAvailability, TimeSlot } from '@/lib/mock-data';
+import { getDayAvailability } from '@/lib/utils/availability-utils';
+import { TimeSlot } from '@/lib/types/availability.types';
+import { api } from '@/lib/api';
+import { convertBackendToFrontend } from '@/lib/utils/resource-converter';
 import { BookingSummaryCard } from '@/components/booking/booking-summary-card';
 import { GuestBookingForm, GuestBookingFormData } from '@/components/booking/guest-booking-form';
 import { BookingConflictModal } from '@/components/booking/booking-conflict-modal';
@@ -20,8 +24,24 @@ export default function BookingFormPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const resourceId = params.resourceId as string;
-  const { getResource, createBooking, getBookings } = useResources();
+  const resourceSlug = params.resourceId as string; // This is actually a slug now
+  const { createBooking, getBookings } = useResources();
+
+  // Fetch resource from API by slug
+  const {
+    data: backendResource,
+    isLoading: resourceLoading,
+    error: resourceError,
+  } = useQuery({
+    queryKey: ['resource', resourceSlug],
+    queryFn: async () => {
+      return api.resources.getBySlug(resourceSlug);
+    },
+    enabled: !!resourceSlug,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+
+  const resource = backendResource ? convertBackendToFrontend(backendResource) : null;
 
   // Get date and slot from query params
   const dateParam = searchParams.get('date');
@@ -33,8 +53,10 @@ export default function BookingFormPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
-  const resource = getResource(resourceId);
-  const bookings = getBookings(resourceId);
+  // Use resource ID for bookings lookup (internal operations use ID)
+  const bookings = useMemo(() => {
+    return resource ? getBookings(resource.id) : [];
+  }, [resource, getBookings]);
 
   // Compute date and slot from query params
   const computedDate = useMemo(() => {
@@ -91,13 +113,28 @@ export default function BookingFormPage() {
     return () => cancelAnimationFrame(rafId);
   }, [computedDate, computedSlot, shouldShowConflict, conflictAlternatives]);
 
-  if (!resource) {
+  if (resourceLoading) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-black p-4 sm:p-6 lg:p-8">
         <div className="max-w-3xl mx-auto">
           <div className="text-center py-12">
-            <p className="text-zinc-600 dark:text-zinc-400 mb-4">Resource not found</p>
-            <Link href="/admin/resources">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+            <p className="text-zinc-600 dark:text-zinc-400 mb-4">Loading resource...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (resourceError || !resource) {
+    return (
+      <div className="min-h-screen bg-zinc-50 dark:bg-black p-4 sm:p-6 lg:p-8">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center py-12">
+            <p className="text-zinc-600 dark:text-zinc-400 mb-4">
+              {resourceError instanceof Error ? resourceError.message : 'Resource not found'}
+            </p>
+            <Link href="/resources">
               <Button variant="outline">Back to Resources</Button>
             </Link>
           </div>
@@ -114,7 +151,7 @@ export default function BookingFormPage() {
             <p className="text-zinc-600 dark:text-zinc-400 mb-4">
               Please select a date and time slot first
             </p>
-            <Link href={`/resources/${resourceId}`}>
+            <Link href={`/resources/${resource.slug}`}>
               <Button variant="outline">Select Time Slot</Button>
             </Link>
           </div>
@@ -156,7 +193,7 @@ export default function BookingFormPage() {
       console.log('Delay complete, checking slot availability...');
 
       // Get fresh bookings right before checking to catch any concurrent bookings
-      const freshBookings = getBookings(resourceId);
+      const freshBookings = getBookings(resource.id);
       console.log('Fresh bookings (re-fetched):', freshBookings);
 
       // Check if slot is still available
@@ -193,7 +230,7 @@ export default function BookingFormPage() {
             'This day is not available for booking. The resource only operates on weekdays (Monday-Friday). Please select a different date.'
           );
           // Navigate back to time selection
-          router.push(`/resources/${resourceId}`);
+          router.push(`/resources/${resource.slug}`);
           return;
         }
 
@@ -221,7 +258,7 @@ export default function BookingFormPage() {
       const endDateTime = new Date(year, month, day, endHour, endMin);
 
       const booking = createBooking(
-        resourceId,
+        resource.id,
         startDateTime.toISOString(),
         endDateTime.toISOString(),
         guestData?.name || 'Guest',
@@ -259,7 +296,7 @@ export default function BookingFormPage() {
       <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
         {/* Header */}
         <div className="mb-6">
-          <Link href={`/resources/${resourceId}`}>
+          <Link href={`/resources/${resource.slug}`}>
             <Button variant="ghost" size="sm" className="mb-4">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Time Selection
@@ -322,7 +359,7 @@ export default function BookingFormPage() {
                 resource={resource}
                 selectedDate={selectedDate}
                 selectedSlot={selectedSlot}
-                onChange={() => router.push(`/resources/${resourceId}`)}
+                onChange={() => router.push(`/resources/${resource.slug}`)}
               />
               <div className="flex justify-end">
                 <Button onClick={() => setCurrentStep('details')}>Continue</Button>
@@ -439,7 +476,7 @@ export default function BookingFormPage() {
           alternativeSlots={alternativeSlots}
           onSelectAlternative={handleSelectAlternative}
           onTryAgain={handleTryAgain}
-          onClose={() => router.push(`/resources/${resourceId}`)}
+          onClose={() => router.push(`/resources/${resource.slug}`)}
         />
 
         {/* Loading Overlay */}

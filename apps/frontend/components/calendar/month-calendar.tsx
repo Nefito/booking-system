@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { DayAvailabilityStatus } from '@/lib/mock-data';
+import { DayAvailabilityStatus } from '@/lib/types/availability.types';
 
 interface MonthCalendarProps {
   selectedDate: Date | null;

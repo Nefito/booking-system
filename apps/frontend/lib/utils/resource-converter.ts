@@ -129,6 +129,7 @@ export function convertBackendToFrontend(backend: BackendResource): FrontendReso
   return {
     id: backend.id,
     name: backend.name,
+    slug: backend.slug,
     description: backend.description || '',
     category,
     status: backend.status,

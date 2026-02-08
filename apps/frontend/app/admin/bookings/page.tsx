@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useResources } from '@/contexts/resources-context';
-import { BookingStatus } from '@/lib/mock-data';
+import { BookingStatus } from '@/lib/types/booking.types';
 import { BookingStatusBadge } from '@/components/booking/booking-status-badge';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';

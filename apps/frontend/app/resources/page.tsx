@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ResourceCategory } from '@/lib/mock-data';
+import { ResourceCategory } from '@/lib/types/resource.types';
 import { PublicResourceCard } from '@/components/resources/public-resource-card';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';

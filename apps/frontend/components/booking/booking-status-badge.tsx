@@ -1,6 +1,6 @@
 'use client';
 
-import { BookingStatus } from '@/lib/mock-data';
+import { BookingStatus } from '@/lib/types/booking.types';
 import { cn } from '@/lib/utils';
 
 interface BookingStatusBadgeProps {
