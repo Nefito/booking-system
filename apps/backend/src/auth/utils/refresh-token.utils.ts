@@ -1,9 +1,9 @@
 import * as crypto from 'crypto';
 
 export class RefreshTokenUtil {
-  // Refresh token expires in 7 days (in seconds)
-  // 7 days * 24 hours * 60 minutes * 60 seconds
-  static readonly EXPIRES_IN = 7 * 24 * 60 * 60;
+  // Refresh token expires in 365 days (in seconds)
+  // 365 days * 24 hours * 60 minutes * 60 seconds
+  static readonly EXPIRES_IN = 365 * 24 * 60 * 60;
 
   /**
    * Generate a secure random refresh token
