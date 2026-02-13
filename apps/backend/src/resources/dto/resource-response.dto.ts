@@ -1,4 +1,5 @@
 import { ResourceStatus, DayOfWeek } from '@prisma/client';
+import { Transform } from 'class-transformer';
 
 export class CategoryResponseDto {
   id: string;
@@ -18,10 +19,16 @@ export class ResourceResponseDto {
   operatingEnd: string;
   availableDays: DayOfWeek[];
   capacity: number;
-  price: number;
   bufferTimeMinutes: number;
   advanceBookingLimitDays?: number;
-  category?: CategoryResponseDto;
   createdAt: Date;
   updatedAt?: Date;
+
+  // Transform Prisma Decimal to number
+  @Transform(({ value }) => (value ? Number(value) : 0))
+  price: number;
+
+  // Transform nested category object
+  @Transform(({ value }) => (value ? { id: value.id, name: value.name } : undefined))
+  category?: CategoryResponseDto;
 }

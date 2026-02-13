@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { plainToInstance } from 'class-transformer';
 
 import { PrismaService } from '../prisma.service';
 import { CreateResourceDto } from './dto/create-resource.dto';
@@ -351,7 +352,6 @@ export class ResourcesService {
     });
   }
 
-  //TODO: look up class transformer library for this
   /**
    * Format resource for response
    *
@@ -359,30 +359,9 @@ export class ResourcesService {
    * WHAT: Maps Prisma resource to ResourceResponseDto
    */
   private formatResourceResponse(resource: any): ResourceResponseDto {
-    return {
-      id: resource.id,
-      name: resource.name,
-      slug: resource.slug,
-      description: resource.description,
-      status: resource.status,
-      imageUrl: resource.imageUrl,
-      location: resource.location,
-      durationMinutes: resource.durationMinutes,
-      operatingStart: resource.operatingStart,
-      operatingEnd: resource.operatingEnd,
-      availableDays: resource.availableDays,
-      capacity: resource.capacity,
-      price: Number(resource.price), // Convert Decimal to number
-      bufferTimeMinutes: resource.bufferTimeMinutes,
-      advanceBookingLimitDays: resource.advanceBookingLimitDays,
-      category: resource.category
-        ? {
-            id: resource.category.id,
-            name: resource.category.name,
-          }
-        : undefined,
-      createdAt: resource.createdAt,
-      updatedAt: resource.updatedAt,
-    };
+    return plainToInstance(ResourceResponseDto, resource, {
+      excludeExtraneousValues: false, // Include all properties
+      enableImplicitConversion: true, // Auto-convert types when possible
+    });
   }
 }
