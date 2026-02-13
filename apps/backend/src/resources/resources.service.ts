@@ -234,8 +234,15 @@ export class ResourcesService {
     }
 
     // STEP 2: Handle image update (delete old image if needed)
-    if (updateResourceDto.imageUrl !== undefined) {
-      this.handleImageUpdate(existing.imageUrl, updateResourceDto.imageUrl);
+    const newImageUrl = updateResourceDto.imageUrl;
+    const shouldDelete =
+      newImageUrl !== undefined &&
+      existing.imageUrl &&
+      newImageUrl !== existing.imageUrl &&
+      this.blobService.isBlobUrl(existing.imageUrl);
+
+    if (shouldDelete) {
+      this.deleteOldImage(existing.imageUrl);
     }
 
     // STEP 3: Regenerate slug if name changed
@@ -329,38 +336,22 @@ export class ResourcesService {
           status: 'inactive', // Also set to inactive
         },
       });
-      return { message: 'Resource deleted (soft delete)' };
+      return { message: 'Resource deleted' };
     }
   }
 
   /**
    * Handle image deletion when imageUrl is updated
-   *
-   * FLOW:
-   * 1. Check if old image should be deleted
-   * 2. Delete old image from blob storage (async, non-blocking)
-   *
    * WHY: Clean up old images when they're replaced or removed
    */
-  private handleImageUpdate(
-    oldImageUrl: string | null | undefined,
-    newImageUrl: string | null | undefined
-  ): void {
-    // Only delete if:
-    // 1. There was an old image
-    // 2. The new image is different (or being removed/null)
-    // 3. The old image is a blob URL (not external)
-    const shouldDelete =
-      oldImageUrl && newImageUrl !== oldImageUrl && this.blobService.isBlobUrl(oldImageUrl);
-
-    if (shouldDelete) {
-      // Delete old image asynchronously (don't block update)
-      this.blobService.deleteFile(oldImageUrl).catch((error) => {
-        console.error('Failed to delete old image:', error);
-      });
-    }
+  private deleteOldImage(oldImageUrl: string): void {
+    // Delete old image asynchronously (don't block update)
+    this.blobService.deleteFile(oldImageUrl).catch((error) => {
+      console.error('Failed to delete old image:', error);
+    });
   }
 
+  //TODO: look up class transformer library for this
   /**
    * Format resource for response
    *
